@@ -188,193 +188,293 @@ ctrlSVM <- caret::trainControl(
 )
 
 
-svmRadial.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                               y= trainData$CancerType,
-                               method = "svmRadial",   # Radial kernel
-                               tuneLength = 5,					# 9 values of the cost function
-                               #preProc = c("center","scale"),  # Center and scale data
-                               metric="Accuracy",
-                               trControl=ctrlSVM)
+# ==============================================
+# STEP 10: Train SVM Radial Model
+# ==============================================
 
+svmRadial.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),  # Standardized predictors
+  y = trainData$CancerType,                                             # Response variable
+  method = "svmRadial",                                                 # Radial basis function kernel
+  tuneLength = 5,                                                       # Grid search with 5 tuning values
+  metric = "Accuracy",                                                  # Use accuracy for model selection
+  trControl = ctrlSVM                                                   # 10-fold CV + SMOTE
+)
 
+# Print summary of tuning process
 svmRadial.tune
 
+# Make predictions on scaled test data
+svmRadial.pred <- predict(svmRadial.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
 
+# Create confusion matrix table
+svmRadial.tab <- table(pred = svmRadial.pred, true = testData$CancerType)
 
-svmRadial.pred <- predict(svmRadial.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-svmRadial.tab = table(pred = svmRadial.pred, true = testData[,c("CancerType")])
-svmRadial.Conf = confusionMatrix(as.factor(svmRadial.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
-
+# Generate detailed confusion matrix (includes sensitivity, specificity, etc.)
+svmRadial.Conf <- confusionMatrix(as.factor(svmRadial.pred), as.factor(testData$CancerType), 
+                                  positive = levels(as.factor(testData$CancerType))[1])
 svmRadial.Conf
 
+# Extract per-class evaluation metrics and transpose
 valuation_table_svmradial_lasso <- t(svmRadial.Conf$byClass)
+
+# Store all tuning results (accuracy, Kappa, etc.)
 valuation_kapa_svmradial_lasso <- svmRadial.tune$results
 
-svmLinear.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                               y= trainData$CancerType,
-                               method = "svmLinear",
-                               tuneLength = 5,
-                               #preProc = c("scale"),
-                               metric="Accuracy",
-                               trControl=ctrlSVM)	
 
+# ==============================================
+# STEP 11: Train SVM Linear Model
+# ==============================================
 
+svmLinear.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
+  y = trainData$CancerType,
+  method = "svmLinear",  # Linear kernel
+  tuneLength = 5,
+  metric = "Accuracy",
+  trControl = ctrlSVM
+)
+
+# Output tuning results
 svmLinear.tune
 
-svmLinear.pred <- predict(svmLinear.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-svmLinear.tab = table(pred = svmLinear.pred, true = testData[,c("CancerType")])
-svmLinear.Conf = confusionMatrix(svmLinear.pred, factor(testData[,c("CancerType")]), positive = levels(factor(testData[,c("CancerType")]))[1])
+# Predict on test data
+svmLinear.pred <- predict(svmLinear.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Confusion matrix
+svmLinear.tab <- table(pred = svmLinear.pred, true = testData$CancerType)
+
+# Compute metrics
+svmLinear.Conf <- confusionMatrix(as.factor(svmLinear.pred), as.factor(testData$CancerType),
+                                  positive = levels(as.factor(testData$CancerType))[1])
 svmLinear.Conf
 
+# Extract per-class metrics
 valuation_table_svmlinear_lasso <- t(svmLinear.Conf$byClass)
 valuation_kapa_svmlinear_lasso <- svmLinear.tune$results
-# 
-svmPoly.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                             y= trainData$CancerType,
-                             method = "svmPoly",
-                             tuneLength = 5,
-                             #preProc = c("scale"),
-                             metric="Accuracy",
-                             trControl=ctrlSVM)
 
 
+# ==============================================
+# STEP 12: Train SVM Polynomial Model
+# ==============================================
+
+svmPoly.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
+  y = trainData$CancerType,
+  method = "svmPoly",  # Polynomial kernel
+  tuneLength = 5,
+  metric = "Accuracy",
+  trControl = ctrlSVM
+)
+
+# Display model details
 svmPoly.tune
 
+# Save trained model to disk
 saveRDS(svmPoly.tune, "svmPoly_lasso.RDS")
-svmPoly.tune <- readRDS( "svmPoly_lasso.RDS")
 
-svmPoly.pred <- predict(svmPoly.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-svmPoly.tab = table(pred = svmPoly.pred, true = testData[,c("CancerType")])
-svmPoly.Conf = confusionMatrix(as.factor(svmPoly.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
+# Optional: Load saved model
+svmPoly.tune <- readRDS("svmPoly_lasso.RDS")
+
+# Predict with polynomial SVM
+svmPoly.pred <- predict(svmPoly.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Create confusion matrix
+svmPoly.tab <- table(pred = svmPoly.pred, true = testData$CancerType)
+
+# Compute detailed metrics
+svmPoly.Conf <- confusionMatrix(as.factor(svmPoly.pred), as.factor(testData$CancerType),
+                                positive = levels(as.factor(testData$CancerType))[1])
 svmPoly.Conf
 
+# Store results
 valuation_table_svmpoly_lasso <- t(svmPoly.Conf$byClass)
 valuation_kapa_svmploy_lasso <- svmPoly.tune$results
 
-#ANN
-library(caret)
-library(dplyr)         # Used by caret
-library(nnet)       # support vector machine 
-library(pROC)	       # plot the ROC curves
 
-ctrlANN <- trainControl(method="CV",   # 10 folds cross validation
-                        number = 10,
-                        classProbs=TRUE,
-                        allowParallel = TRUE,
-                        savePredictions = TRUE,
-                        sampling = "smote"
+# ==============================================
+# STEP 13: Train Artificial Neural Network (ANN)
+# ==============================================
+
+library(nnet)
+
+# Define training control for ANN
+ctrlANN <- trainControl(
+  method = "CV",              # 10-fold CV
+  number = 10,
+  classProbs = TRUE,
+  allowParallel = TRUE,
+  savePredictions = TRUE,
+  sampling = "smote"
 )
 
-ANNModel.tune <- caret::train(x=scale(trainData[,-which(names(trainData) %in% c("CancerType"))]),
-                              y= trainData$CancerType,
-                              method = "nnet",   # Artificial nueral network
-                              trace = FALSE, 
-                              trControl=ctrlANN,
-                              #preProcess = c('scale'),
-                              metric="Accuracy")
+# Train neural network model using 'nnet'
+ANNModel.tune <- caret::train(
+  x = scale(trainData[, -which(names(trainData) %in% c("CancerType"))]),
+  y = trainData$CancerType,
+  method = "nnet",        # Neural net from nnet package
+  trace = FALSE,          # Suppress training output
+  trControl = ctrlANN,
+  metric = "Accuracy"
+)
 
+# View tuning results
 ANNModel.tune
-
 print(ANNModel.tune)
 plot(ANNModel.tune)
 
-ANNModel.pred <- predict(ANNModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-ANNModel.tab = table(pred = ANNModel.pred, true = testData[,c("CancerType")])
-ANNModel.Conf = confusionMatrix(as.factor(ANNModel.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
+# Predict on test data
+ANNModel.pred <- predict(ANNModel.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Create confusion matrix and compute metrics
+ANNModel.tab <- table(pred = ANNModel.pred, true = testData$CancerType)
+ANNModel.Conf <- confusionMatrix(as.factor(ANNModel.pred), as.factor(testData$CancerType),
+                                 positive = levels(as.factor(testData$CancerType))[1])
 ANNModel.Conf
 
+# Store metrics
 valuation_table_ann_lasso <- t(ANNModel.Conf$byClass)
 valuation_kapa_ann_lasso <- ANNModel.tune$results
-#KNN
-library(caret)
-library(pROC)
 
-ctrlKNN <- trainControl(method="CV",   # 10 folds cross validation
-                        number = 10,
-                        savePredictions = TRUE,
-                        classProbs=TRUE,
-                        allowParallel = FALSE,
-                        sampling = "smote"
+
+# ==============================================
+# STEP 14: Train K-Nearest Neighbors (KNN)
+# ==============================================
+
+ctrlKNN <- trainControl(
+  method = "CV",             # 10-fold CV
+  number = 10,
+  savePredictions = TRUE,
+  classProbs = TRUE,
+  allowParallel = FALSE,     # KNN is usually not parallelized in caret
+  sampling = "smote"
 )
 
-KNNModel.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                              y= trainData$CancerType,
-                              method = "knn",   # K Nearest Neighbor
-                              metric="Accuracy",
-                              #preProcess = c('scale'),
-                              trControl=ctrlKNN)
+# Train KNN classifier
+KNNModel.tune <- caret::train(
+  x = scale(trainData[, -which(names(trainData) %in% c("CancerType"))]),
+  y = trainData$CancerType,
+  method = "knn",
+  metric = "Accuracy",
+  trControl = ctrlKNN
+)
 
+# Print and visualize tuning results
 KNNModel.tune
-
 print(KNNModel.tune)
 plot(KNNModel.tune)
 
-KNNModel.pred <- predict(KNNModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-KNNModel.tab = table(pred = KNNModel.pred, true = testData[,c("CancerType")])
-KNNModel.Conf = confusionMatrix(as.factor(KNNModel.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
+# Predict on test data
+KNNModel.pred <- predict(KNNModel.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Confusion matrix
+KNNModel.tab <- table(pred = KNNModel.pred, true = testData$CancerType)
+
+# Evaluate model
+KNNModel.Conf <- confusionMatrix(as.factor(KNNModel.pred), as.factor(testData$CancerType),
+                                 positive = levels(as.factor(testData$CancerType))[1])
 KNNModel.Conf
 
-
+# Store evaluation tables
 valuation_table_knn_lasso <- t(KNNModel.Conf$byClass)
 valuation_kapa_knn_lasso <- KNNModel.tune$results
 
-######Bagging using Random Forest
 
+# ==============================================
+# STEP 15: Bagging Using Random Forest (RF)
+# ==============================================
+
+# Load necessary libraries
 library(caret)
 library(pROC)
 
-ctrlRF <- trainControl(method = "CV",   # 10-fold cross-validation
-                       number = 10,
-                       savePredictions = TRUE,
-                       classProbs = TRUE,
-                       allowParallel = TRUE,
-                       sampling = "smote"
+# Define training control configuration for Random Forest
+ctrlRF <- trainControl(
+  method = "CV",             # 10-fold cross-validation
+  number = 10,
+  savePredictions = TRUE,    # Save predictions for later analysis
+  classProbs = TRUE,         # Calculate class probabilities
+  allowParallel = TRUE,      # Enable parallel processing
+  sampling = "smote"         # Apply SMOTE to balance class distribution
 )
 
-RFModel.tune <- caret::train(x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                             y = trainData$CancerType,
-                             method = "rf",   # Random Forest
-                             metric = "Accuracy",
-                             trControl = ctrlRF)
+# Train Random Forest model on scaled training data
+RFModel.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),  # Exclude target and scale features
+  y = trainData$CancerType,                                             # Target variable
+  method = "rf",                                                        # Random Forest classifier
+  metric = "Accuracy",                                                  # Optimization metric
+  trControl = ctrlRF                                                    # Training control object
+)
 
-rfmodel.pred <- predict(RFModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-rf.tab = table(pred = rfmodel.pred, true = testData[,c("CancerType")])
-rfmodel.Conf = confusionMatrix(as.factor(rfmodel.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
+# Predict on scaled test data
+rfmodel.pred <- predict(RFModel.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Create confusion matrix table (counts)
+rf.tab <- table(pred = rfmodel.pred, true = testData$CancerType)
+
+# Compute full confusion matrix with detailed statistics
+rfmodel.Conf <- confusionMatrix(
+  as.factor(rfmodel.pred), 
+  as.factor(testData$CancerType), 
+  positive = levels(as.factor(testData$CancerType))[1]  # Use first level as positive class (e.g., "BRCA")
+)
 rfmodel.Conf
 
+# Transpose class-specific performance metrics (sensitivity, precision, etc.)
 evaluation_table_rf_lasso <- t(rfmodel.Conf$byClass)
+
+# Store complete tuning results for hyperparameter evaluation
 valuation_kapa_rf_lasso <- RFModel.tune$results
 
-#Boosting using XgBoost
 
-#install.packages("xgboost")
+# ==============================================
+# STEP 16: Boosting Using XGBoost
+# ==============================================
 
-library(caret)
-library(pROC)
+# Load required libraries for XGBoost
+# Note: `xgboost` must be installed via install.packages("xgboost") if not already
 library(xgboost)
 
-ctrlXGB <- trainControl(method = "CV",   # 10-fold cross-validation
-                        number = 10,
-                        savePredictions = TRUE,
-                        classProbs = TRUE,
-                        allowParallel = TRUE,
-                        sampling = "smote"
+# Define cross-validation and training control for XGBoost
+ctrlXGB <- trainControl(
+  method = "CV",             # 10-fold cross-validation
+  number = 10,
+  savePredictions = TRUE,
+  classProbs = TRUE,
+  allowParallel = TRUE,
+  sampling = "smote"         # Apply SMOTE balancing
 )
 
-XGBModel.tune <- caret::train(x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                              y = trainData$CancerType,
-                              method = "xgbTree",   # XGBoost
-                              metric = "Accuracy",
-                              trControl = ctrlXGB
+# Train XGBoost model on scaled features
+XGBModel.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),  # Scaled predictors
+  y = trainData$CancerType,                                             # Target variable
+  method = "xgbTree",                                                   # XGBoost with decision trees
+  metric = "Accuracy",                                                  # Evaluation metric
+  trControl = ctrlXGB                                                   # Training control
 )
 
-boostmodel.pred <- predict(XGBModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-boost.tab = table(pred = boostmodel.pred, true = testData[,c("CancerType")])
-boostmodel.Conf = confusionMatrix(as.factor(boostmodel.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
+# Predict classes on test data
+boostmodel.pred <- predict(XGBModel.tune, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Create confusion matrix of predictions vs. true labels
+boost.tab <- table(pred = boostmodel.pred, true = testData$CancerType)
+
+# Compute evaluation statistics
+boostmodel.Conf <- confusionMatrix(
+  as.factor(boostmodel.pred), 
+  as.factor(testData$CancerType),
+  positive = levels(as.factor(testData$CancerType))[1]
+)
 boostmodel.Conf
 
+# Transpose performance metrics for easier tabular display
 evaluation_table_boost_lasso <- t(boostmodel.Conf$byClass)
+
+# Store XGBoost tuning results (accuracy, Kappa, hyperparameters)
 valuation_kapa_boost_lasso <- XGBModel.tune$results
+
 
 
 #$$$$$$$$$$$$$$$$$$$$$ Overall Results 
