@@ -622,114 +622,141 @@ write.xlsx(lasso_models, "lasso_metrics_results.xlsx", rowNames = TRUE, overwrit
 
 
 
-#===================================== SVM Radial
-library(caret)
-library(dplyr)         # Used by caret
-library(kernlab)       # support vector machine 
-library(pROC)	  
+# ==============================================
+# STEP 20: Plot ROC and PR Curves for SVM Radial
+# ==============================================
 
-SVMR_pred <- predict(svmRadial.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+library(caret)
+library(dplyr)         # Data manipulation (required by caret)
+library(kernlab)       # SVM backend
+library(pROC)          # For ROC computations
+
+# Predict class probabilities on test data using trained SVM Radial model
+SVMR_pred <- predict(svmRadial.tune$finalModel, 
+                     scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                     type = 'prob')  # Get class probabilities
+
+# Convert prediction matrix to data frame
 SVMR_pred <- data.frame(SVMR_pred)
+
+# Rename columns to indicate the model used (for downstream clarity)
 colnames(SVMR_pred) <- paste0(colnames(SVMR_pred), "_pred_SVM_radial")
 
-
+# Extract actual class labels
 data <- data.frame(CancerType = testData$CancerType)
 
-# Create dummy variables
+# One-hot encode the true labels using model.matrix
 true_label <- model.matrix(~ CancerType - 1, data = data)
+
+# Rename true label columns (cleaning names and adding "_true" suffix)
 library(stringr)
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-
+# Combine predicted and true labels into one data frame for evaluation
 SVMR_final_df <- cbind(true_label, SVMR_pred)
-SVMR_roc_res <- multiROC::multi_roc(SVMR_final_df, force_diag=T)
-SVMR_pr_res <- multiROC::multi_pr(SVMR_final_df, force_diag=T)
 
+# Compute multi-class ROC results
+SVMR_roc_res <- multiROC::multi_roc(SVMR_final_df, force_diag = TRUE)
+
+# Compute multi-class Precision-Recall results
+SVMR_pr_res <- multiROC::multi_pr(SVMR_final_df, force_diag = TRUE)
+
+# Convert ROC and PR results into plottable data frames
 plot_roc_df_SVMR <- multiROC::plot_roc_data(SVMR_roc_res)
-plot_pr_df_SVMR <- multiROC::plot_pr_data(SVMR_pr_res)
+plot_pr_df_SVMR  <- multiROC::plot_pr_data(SVMR_pr_res)
 
 require(ggplot2)
 library(multiROC)
 
-ggplot(plot_roc_df_SVMR, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+# --- Plot and Save ROC Curve ---
+ggplot(plot_roc_df_SVMR, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +    # ROC curves per class
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),               # Diagonal reference line
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size = 14),
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, linetype = "solid", colour = "black"))
 ggsave("lasso_svmradial_roc_curve.png")
 
-
-ggplot(plot_pr_df_SVMR, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+# --- Plot and Save PR Curve ---
+ggplot(plot_pr_df_SVMR, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size = 14),
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, linetype = "solid", colour = "black"))
 ggsave("lasso_plot_pr_df_SVM_radial.png")
 
-#===================================== SVM Linear
 
 
-SVMPL_pred <- predict(svmLinear.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
+# ==============================================
+# STEP 21: Plot ROC and PR Curves for SVM Linear
+# ==============================================
+
+# Predict class labels using the trained SVM Linear model
+SVMPL_pred <- predict(svmLinear.tune$finalModel, 
+                      scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Convert to data frame
 SVMPL_pred <- data.frame(SVMPL_pred)
+
+# Rename column to indicate it’s from SVM Linear model
 colnames(SVMPL_pred) <- paste0(colnames(SVMPL_pred), "_pred_SVM_Linear")
 
-
+# Reload true class labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# One-hot encode true labels
 true_label <- model.matrix(~ CancerType - 1, data = data)
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-data_pred <- data.frame(CancerType = SVMPL_pred$SVMPL_pred_pred_SVML)
-# Create dummy variables
+# --- POTENTIAL ISSUE ---
+# The line below appears to be leftover or incorrect:
+# data_pred <- data.frame(CancerType = SVMPL_pred$SVMPL_pred_pred_SVML)
+
+# Overwrite prediction matrix with one-hot encoding (for multiclass ROC)
+# This is NOT probability-based like in Radial SVM — it simulates hard classification
 SVMPL_pred <- model.matrix(~ CancerType - 1, data = data)
 colnames(SVMPL_pred) <- paste0(str_replace(colnames(SVMPL_pred), pattern = "CancerType", ""), "_pred_SVM_Linear")
 
-
-
-
-
+# Combine true and predicted labels
 SVMPL_final_df <- cbind(true_label, SVMPL_pred)
-SVMPL_roc_res <- multi_roc(SVMPL_final_df, force_diag=T)
-SVMPL_pr_res <- multi_pr(SVMPL_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR results
+SVMPL_roc_res <- multiROC::multi_roc(SVMPL_final_df, force_diag = TRUE)
+SVMPL_pr_res  <- multiROC::multi_pr(SVMPL_final_df, force_diag = TRUE)
+
+# Format results for ggplot
 plot_roc_df_SVMPL <- plot_roc_data(SVMPL_roc_res)
-plot_pr_df_SVML <- plot_pr_data(SVMPL_pr_res)
+plot_pr_df_SVML   <- plot_pr_data(SVMPL_pr_res)
 
-
-
-ggplot(plot_roc_df_SVMPL, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
+# --- Plot and Save ROC Curve ---
+ggplot(plot_roc_df_SVMPL, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
   geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, linetype = "solid", colour = "black"))
 ggsave("lasso_svmlinear_roc_curve.png")
 
-ggplot(plot_pr_df_SVML, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+# --- Plot and Save PR Curve ---
+ggplot(plot_pr_df_SVML, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, linetype = "solid", colour = "black"))
 ggsave("lasso_plot_pr_df_svmlinear.png")
+
 
 #===================================== SVM Polynomial
 
