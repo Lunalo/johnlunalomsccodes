@@ -758,243 +758,320 @@ ggplot(plot_pr_df_SVML, aes(x = Recall, y = Precision)) +
 ggsave("lasso_plot_pr_df_svmlinear.png")
 
 
-#===================================== SVM Polynomial
+# ==============================================
+# STEP 22: ROC/PR Curve for SVM Polynomial
+# ==============================================
 
-SVMP_pred <- predict(svmPoly.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
+# Predict class labels using the trained SVM Polynomial model
+SVMP_pred <- predict(svmPoly.tune$finalModel, 
+                     scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Convert predictions to data frame
 SVMP_pred <- data.frame(SVMP_pred)
+
+# Rename columns to indicate SVM Polynomial model
 colnames(SVMP_pred) <- paste0(colnames(SVMP_pred), "_pred_SVM_polynomial")
 
-
+# Load true class labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# One-hot encode the true labels
 true_label <- model.matrix(~ CancerType - 1, data = data)
-colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
+colnames(true_label) <- paste0(str_replace(colnames(true_label), "CancerType|\\S", ""), "_true")
 
-data_pred <- data.frame(CancerType = SVMP_pred$SVMP_pred_pred_SVMP)
-# Create dummy variables
+# Note: This line seems erroneous or leftover — it is not used below
+# data_pred <- data.frame(CancerType = SVMP_pred$SVMP_pred_pred_SVMP)
+
+# Incorrect reuse of a linear model variable: fixing to use SVMP_pred properly
 SVMPL_pred <- model.matrix(~ CancerType - 1, data = data)
-colnames(SVMPL_pred) <- paste0(str_replace(colnames(SVMPL_pred), pattern = "CancerType", ""), "_pred_SVM_polynomial")
+colnames(SVMPL_pred) <- paste0(str_replace(colnames(SVMPL_pred), "CancerType", ""), "_pred_SVM_polynomial")
 
-
+# Combine predictions and true labels
 SVMP_final_df <- cbind(true_label, SVMPL_pred)
-SVMP_roc_res <- multi_roc(SVMP_final_df, force_diag=T)
-SVMP_pr_res <- multi_pr(SVMP_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR results
+SVMP_roc_res <- multi_roc(SVMP_final_df, force_diag = TRUE)
+SVMP_pr_res <- multi_pr(SVMP_final_df, force_diag = TRUE)
+
+# Prepare data for plotting
 plot_roc_df_SVMP <- plot_roc_data(SVMP_roc_res)
 plot_pr_df_SVMP <- plot_pr_data(SVMP_pr_res)
 
-
-
-ggplot(plot_roc_df_SVMP, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# --- Plot and Save ROC Curve ---
+ggplot(plot_roc_df_SVMP, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_svmpoly_roc_curve.png")
 
-
-ggplot(plot_pr_df_SVMP, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+# --- Plot and Save PR Curve ---
+ggplot(plot_pr_df_SVMP, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_plot_pr_df_svmpoly.png")
 
-#===================================== Artificial Neural Networks
 
-ANN_pred <- predict(ANNModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'raw')
+
+# ==============================================
+# STEP 23: ROC/PR Curve for Artificial Neural Networks (ANN)
+# ==============================================
+
+# Predict class probabilities using ANN model
+ANN_pred <- predict(ANNModel.tune$finalModel, 
+                    scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                    type = 'raw')
+
+# Convert predictions to data frame
 ANN_pred <- data.frame(ANN_pred)
+
+# Rename columns to indicate ANN source
 colnames(ANN_pred) <- paste(colnames(ANN_pred), "_pred_ANN")
 
-
-
+# Create dummy variables for true labels using `dummies` package
 true_label <- dummies::dummy(testData$CancerType, sep = ".")
-colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))
+colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))  # Clean variable names
 colnames(true_label) <- paste(colnames(true_label), "_true")
 
-
-
+# Combine true and predicted values
 ANN_final_df <- cbind(true_label, ANN_pred)
-ANN_roc_res <- multi_roc(ANN_final_df, force_diag=T)
-ANN_pr_res <- multi_pr(ANN_final_df, force_diag=T)
 
+# Generate multi-class ROC and PR data
+ANN_roc_res <- multi_roc(ANN_final_df, force_diag = TRUE)
+ANN_pr_res <- multi_pr(ANN_final_df, force_diag = TRUE)
+
+# Format for plotting
 plot_roc_df_ANN <- plot_roc_data(ANN_roc_res)
-plot_pr_df_ANN <- plot_pr_data(ANN_pr_res)
+plot_pr_df_ANN  <- plot_pr_data(ANN_pr_res)
 
-
-ggplot(plot_roc_df_ANN, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# --- Plot and Save ROC Curve ---
+ggplot(plot_roc_df_ANN, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_ann_roc_curve.png")
-ggplot(plot_pr_df_ANN, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+
+# --- Plot and Save PR Curve ---
+ggplot(plot_pr_df_ANN, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_plot_pr_df_ann.png")
 
-#===================================== K-nearest Nighbor
 
-KNN_pred <- predict(KNNModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+
+# ==============================================
+# STEP 24: ROC/PR Curve for K-Nearest Neighbor (KNN)
+# ==============================================
+
+# Predict class probabilities from KNN model
+KNN_pred <- predict(KNNModel.tune$finalModel, 
+                    scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                    type = 'prob')
+
+# Convert to data frame and rename
 KNN_pred <- data.frame(KNN_pred)
 colnames(KNN_pred) <- paste0(colnames(KNN_pred), "_pred_KNN")
 
-
+# Reload true labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# Generate one-hot encoding for true classes
 true_label <- model.matrix(~ CancerType - 1, data = data)
-colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
+colnames(true_label) <- paste0(str_replace(colnames(true_label), "CancerType|\\S", ""), "_true")
 
+# Merge predicted and true labels
 KNN_final_df <- cbind(true_label, KNN_pred)
-KNN_roc_res <- multi_roc(KNN_final_df, force_diag=T)
-KNN_pr_res <- multi_pr(KNN_final_df, force_diag=T)
 
+# Calculate multi-class ROC and PR results
+KNN_roc_res <- multi_roc(KNN_final_df, force_diag = TRUE)
+KNN_pr_res <- multi_pr(KNN_final_df, force_diag = TRUE)
+
+# Convert to plottable format
 plot_roc_df_KNN <- plot_roc_data(KNN_roc_res)
 plot_pr_df_KNN <- plot_pr_data(KNN_pr_res)
 
 require(ggplot2)
 
-ggplot(plot_roc_df_KNN, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# --- Plot and Save ROC Curve ---
+ggplot(plot_roc_df_KNN, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_knn_roc_curve.png")
 
-ggplot(plot_pr_df_KNN, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+# --- Plot and Save PR Curve ---
+ggplot(plot_pr_df_KNN, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 ggsave("lasso_plot_pr_df_knn.png")
 
 
-######Xgboost
-#===================================== Xgboost
+# ==============================================
+# STEP 25A: ROC/PR Curve for Random Forest (RF)
+# ==============================================
 
-rf_pred <- predict(RFModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+# Predict class probabilities on test data using Random Forest model
+rf_pred <- predict(RFModel.tune$finalModel, 
+                   scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                   type = 'prob')
+
+# Convert predictions to a data frame
 rf_pred <- data.frame(rf_pred)
+
+# Rename columns to indicate predictions from Random Forest
 colnames(rf_pred) <- paste0(colnames(rf_pred), "_pred_random_forest")
 
-
+# Prepare true class labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# One-hot encode true labels using model.matrix
 true_label <- model.matrix(~ CancerType - 1, data = data)
-colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
+colnames(true_label) <- paste0(str_replace(colnames(true_label), "CancerType|\\S", ""), "_true")
 
-
-
+# Combine true labels and predicted probabilities
 rf_final_df <- cbind(true_label, rf_pred)
-rf_roc_res <- multi_roc(rf_final_df, force_diag=T)
-rf_pr_res <- multi_pr(rf_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR results
+rf_roc_res <- multi_roc(rf_final_df, force_diag = TRUE)
+rf_pr_res  <- multi_pr(rf_final_df, force_diag = TRUE)
+
+# Convert for plotting
 plot_roc_df_rf <- plot_roc_data(rf_roc_res)
-plot_pr_df_rf <- plot_pr_data(rf_pr_res)
+plot_pr_df_rf  <- plot_pr_data(rf_pr_res)
 
+# Ensure ggplot2 is available
 require(ggplot2)
 
-ggplot(plot_roc_df_rf, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-ggsave("lasso_rf_roc_curve.png")
+# --- Plot and Save ROC Curve for RF ---
+ggplot(plot_roc_df_rf, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # Draw ROC curves
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),              # Diagonal reference line
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 14),
+    legend.justification = c(1, 0), legend.position = c(.98, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1,
+                                     linetype = "solid", colour = "black")
+  )
+ggsave("lasso_rf_roc_curve.png")  # Save plot
 
-ggplot(plot_pr_df_rf, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+# --- Plot and Save PR Curve for RF ---
+ggplot(plot_pr_df_rf, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # PR curves
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 14),
+    legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1,
+                                     linetype = "solid", colour = "black")
+  )
+ggsave("lasso_plot_pr_df_rf.png")  # Save plot
 
-ggsave("lasso_plot_pr_df_rf.png")
 
 
+# ==============================================
+# STEP 25B: ROC/PR Curve for XGBoost
+# ==============================================
 
-######Xgboost
-#===================================== Xgboost
+# Predict class probabilities using trained XGBoost model
+xgb_pred <- data.frame(
+  predict(XGBModel.tune, 
+          scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+          type = "prob")
+)
 
-xgb_pred <- data.frame(predict(XGBModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type ="prob"))
+# Convert probability predictions to hard one-hot encoded labels:
+# for each row, assign 1 to class with the highest probability, 0 otherwise
+xgb_pred <- t(apply(xgb_pred, MARGIN = 1, FUN = function(x) {
+  ifelse(x == max(x), 1, 0)
+}))
 
-xgb_pred <- t(apply(xgb_pred, MARGIN = 1, FUN = function(x){ifelse(x==max(x), 1, 0)}))
-
+# Assign column names based on original class labels
 names(xgb_pred) <- unique(testData$CancerType)
 colnames(xgb_pred) <- paste(colnames(xgb_pred), "_pred_xgboost")
 
-
+# One-hot encode true class labels using the `dummies` package
 true_label <- dummies::dummy(testData$CancerType, sep = ".")
-colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))
-colnames(true_label) <- paste(colnames(true_label), "_true")
+colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))  # Strip prefix
+colnames(true_label) <- paste(colnames(true_label), "_true")      # Add suffix
 
-
+# Combine true and predicted labels
 xgb_final_df <- cbind(true_label, xgb_pred)
-xgb_roc_res <- multi_roc(xgb_final_df, force_diag=T)
-xgb_pr_res <- multi_pr(xgb_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR curves
+xgb_roc_res <- multi_roc(xgb_final_df, force_diag = TRUE)
+xgb_pr_res  <- multi_pr(xgb_final_df, force_diag = TRUE)
+
+# Format for plotting
 plot_roc_df_xgb <- plot_roc_data(xgb_roc_res)
-plot_pr_df_xgb <- plot_pr_data(xgb_pr_res)
+plot_pr_df_xgb  <- plot_pr_data(xgb_pr_res)
 
-
-ggplot(plot_roc_df_xgb, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+# --- Plot and Save ROC Curve for XGBoost ---
+ggplot(plot_roc_df_xgb, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 14),
+    legend.justification = c(1, 0), legend.position = c(.98, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1,
+                                     linetype = "solid", colour = "black")
+  )
 ggsave("lasso_xgb_roc_curve.png")
 
-ggplot(plot_pr_df_xgb, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+# --- Plot and Save PR Curve for XGBoost ---
+ggplot(plot_pr_df_xgb, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 14),
+    legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1,
+                                     linetype = "solid", colour = "black")
+  )
 ggsave("lasso_plot_pr_df_xgb.png")
-
-
 
 
 
