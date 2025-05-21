@@ -1,62 +1,119 @@
-#windows
-#setwd("C:\\Users\\John\\OneDrive\\Masters Thesis Analysis\\DataWindows\\Project")
+#===========================#
+#   Set Working Directory  #
+#===========================#
 
-#mac
+# For Windows users (commented out):
+# setwd("C:\\Users\\John\\OneDrive\\Masters Thesis Analysis\\DataWindows\\Project")
+
+# For Mac users (active line):
 setwd("/Users/johnlunalo/Library/CloudStorage/OneDrive-Personal/Masters Thesis Analysis/DataWindows/Project")
 
 
+#===========================#
+#     Load and Prepare Data#
+#===========================#
 
+# Read the dataset with first column as row names and convert strings to factors
 Data <- read.csv(file = "model_data.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 
-Data$CLASS <- ifelse(Data$CLASS == "BRCA", 1, ifelse(Data$CLASS == "COAD", 2, ifelse(Data$CLASS == "LUAD", 3, ifelse(Data$CLASS == "OV", 4, 5))))
+# Recode the CLASS variable to numeric values for modeling (classification targets):
+# 1 = BRCA, 2 = COAD, 3 = LUAD, 4 = OV, 5 = Other/Default
+Data$CLASS <- ifelse(Data$CLASS == "BRCA", 1, 
+                ifelse(Data$CLASS == "COAD", 2, 
+                  ifelse(Data$CLASS == "LUAD", 3, 
+                    ifelse(Data$CLASS == "OV", 4, 5))))
+
+# Check distribution of class labels after recoding
 table(Data$CLASS)
 
-library(tidyverse)
-library(caret)
-library(pls)
-library(ggplot2)
-library(vip)
-library(chillR)
-library(mdatools)
-library(glmnet)
+
+#===========================#
+#     Load Required Libraries
+#===========================#
+
+library(tidyverse)   # For data manipulation and visualization
+library(caret)       # For machine learning modeling and cross-validation
+library(pls)         # Partial Least Squares regression
+library(ggplot2)     # Advanced plotting
+library(vip)         # Variable importance plots
+library(chillR)      # Not used here, possibly for later weather modeling
+library(mdatools)    # Multivariate data analysis tools
+library(glmnet)      # For penalized regression models (like LASSO)
 
 
+#===========================#
+#     Data Partitioning    #
+#===========================#
 
-# Set the target variable
+# Specify the name of the target variable
 target <- "CLASS"
 
+# Set seed for reproducibility
+set.seed(123)
 
-set.seed(123) 
+# Split the dataset into training (70%) and testing (30%) sets
 trainIndex <- createDataPartition(Data$CLASS, p = 0.70, list = FALSE)
-trainData <- Data[trainIndex, ]
-testData <- Data[-trainIndex, ]
+trainData <- Data[trainIndex, ]  # Training set
+testData <- Data[-trainIndex, ]  # Testing set
 
+
+#===========================#
+#   Enable Parallel Backend #
+#===========================#
 
 library(doParallel)
+
+# Detect number of cores and use all except 2 (for system responsiveness)
 nocores <- detectCores() - 2
 cl <- makeCluster(nocores)
-registerDoParallel(cl)
-
-# Training SVM Models
-library(caret)
-library(dplyr)         # Used by caret
-library(kernlab)       # support vector machine 
-library(pROC)	    
+registerDoParallel(cl)  # Register parallel backend for caret training
 
 
-fitControl <- trainControl(method="CV",   # 10 folds cross validation
-                        number = 10,
-                        savePredictions = TRUE,
-                        allowParallel = TRUE,
-                        p=0.85,
-                        preProc = c("scale")
+#===========================#
+#      Train SVM Models    #
+#===========================#
+
+library(dplyr)         # Needed for some caret backend operations
+library(kernlab)       # For SVM via caret
+library(pROC)	         # For AUC and ROC curve evaluations
+
+# Define training control for caret with 10-fold cross-validation
+fitControl <- trainControl(
+  method = "CV",             # Cross-validation
+  number = 10,               # Number of folds
+  savePredictions = TRUE,    # Save predictions for performance assessment
+  allowParallel = TRUE,      # Enable parallel processing
+  p = 0.85,                  # Not relevant for CV; mainly used in other resampling methods
+  preProc = c("scale")       # Scale predictors to mean=0 and sd=1
 )
 
 
-pls_fit1<-caret::train(CLASS ~ ., data = Data, method ="pls", trControl=fitControl
-                      )
-ggplot(pls_fit1, aesthetics =aes(fill ="#0083b8")) + theme_minimal() + xlab("Principal Componets") + ggtitle("Scree Plot of RMSE Against Principal Componets ")+
-  theme(plot.title = element_text(hjust = 0.5, colour = "black", size = 22), axis.title = element_text(colour = "black", size = 16))
+#===========================#
+#   Train a PLS Model       #
+#===========================#
+
+# Train Partial Least Squares model on the full dataset
+pls_fit1 <- caret::train(
+  CLASS ~ ., 
+  data = Data, 
+  method = "pls", 
+  trControl = fitControl
+)
+
+
+#===========================#
+#   Plot Model Performance  #
+#===========================#
+
+# Plot Root Mean Squared Error (RMSE) vs. Number of PLS Components
+ggplot(pls_fit1, aesthetics = aes(fill = "#0083b8")) +  # Specify fill color (though it might not apply here)
+  theme_minimal() +                                    # Minimal plot theme
+  xlab("Principal Components") +                       # X-axis label
+  ggtitle("Scree Plot of RMSE Against Principal Components") +  # Plot title
+  theme(
+    plot.title = element_text(hjust = 0.5, colour = "black", size = 22),  # Centered and styled title
+    axis.title = element_text(colour = "black", size = 16)               # Axis title styling
+  )
 
 
 # varimp_vec_loop <- seq(2.9,4, 0.05)
@@ -184,68 +241,92 @@ ggplot(pls_fit1, aesthetics =aes(fill ="#0083b8")) + theme_minimal() + xlab("Pri
 #write.csv(df, "vip_accuracy.csv")
 
 
+# Load the variable importance and accuracy results from PLS modeling
 df <- read.csv("vip_accuracy.csv")
-############End of selecting Variables
-selected_vip <- df[df$accuracy==max(df$accuracy), "varimp_vec_loop"][1]
-selected_vip1 <- df[df$accuracy==max(df$accuracy), "varimp_vec_loop"][2]
-selected_vip2 <- df[df$accuracy==max(df$accuracy), "varimp_vec_loop"][3]
-ggplot(df, mapping =aes(x = varimp_vec_loop, y = accuracy)) + geom_line(color ="#0083b8")+
-  
-  theme_minimal() + xlab("Variable Importance") + ggtitle("Accuracy against VIP")+
-  theme(plot.title = element_text(hjust = 0.5, colour = "black", size = 22), axis.title = element_text(colour = "black", size = 16))+
-  geom_text(aes(x= selected_vip, y = max(accuracy)+.003, label = paste0(round(max(accuracy)*100, 2), "%")), size = 4)+
-  #geom_text(aes(x= selected_vip1, y = max(accuracy)+.003, label = paste0(round(max(accuracy)*100, 2), "%")), size = 4)+
-  geom_text(aes(x= selected_vip2, y = max(accuracy)+.003, label = paste0(round(max(accuracy)*100, 2), "%")), size = 4)
 
+############ End of selecting Variables ############
+
+# Select the variable with the highest accuracy (VIP - Variable Importance in Projection)
+selected_vip <- df[df$accuracy == max(df$accuracy), "varimp_vec_loop"][1]  # Top variable
+selected_vip1 <- df[df$accuracy == max(df$accuracy), "varimp_vec_loop"][2] # Second variable with same accuracy
+selected_vip2 <- df[df$accuracy == max(df$accuracy), "varimp_vec_loop"][3] # Third variable with same accuracy
+
+# Plot accuracy against variable importance index using ggplot
+ggplot(df, mapping = aes(x = varimp_vec_loop, y = accuracy)) +
+  geom_line(color = "#0083b8") +  # Line plot in blue for accuracy trend
+  theme_minimal() +              # Minimal theme for cleaner visualization
+  xlab("Variable Importance") +  # X-axis label
+  ggtitle("Accuracy against VIP") +  # Title
+  theme(
+    plot.title = element_text(hjust = 0.5, colour = "black", size = 22),  # Centered and styled title
+    axis.title = element_text(colour = "black", size = 16)                # Axis title styling
+  ) +
+  # Annotate top variables on the plot with the accuracy value as a percentage
+  geom_text(aes(x = selected_vip, y = max(accuracy) + 0.003, 
+                label = paste0(round(max(accuracy) * 100, 2), "%")), size = 4) +
+  # Second annotation commented out
+  # geom_text(aes(x = selected_vip1, y = max(accuracy)+.003, label = paste0(round(max(accuracy)*100, 2), "%")), size = 4) +
+  geom_text(aes(x = selected_vip2, y = max(accuracy) + 0.003, 
+                label = paste0(round(max(accuracy) * 100, 2), "%")), size = 4)
+
+# Save the plot as an image
 ggsave("vip_optimum.png")
-#selected_vip <- df[df$accuracy==max(df$accuracy), "varimp_vec_loop"]
 
+# Extract variable importance object from PLS model (assumes `pls_fit1` is a fitted PLS model)
 varimp_vec <- varImp(pls_fit1, ncomp = 3)
-sum(varimp_vec$importance>selected_vip)
-#summary(pls_fit1)
 
+# Count how many features have importance score greater than the selected VIP threshold
+sum(varimp_vec$importance > selected_vip)
 
-comp_loadings <- pls_fit1$finalModel$loadings[1:14899, 1:2]
+# Extract the loadings for the first two components from the PLS model
+comp_loadings <- pls_fit1$finalModel$loadings[1:14899, 1:2]  # First 14,899 features across 2 components
 
-#comp_loadings1 <- data.frame(cols = unlist(dimnames(comp_loadings)[1]))
+# The following commented-out code was for examining loadings
+# comp_loadings1 <- data.frame(cols = unlist(dimnames(comp_loadings)[1]))
+# comp_loadings1$trial <- as.vector(apply(comp_loadings, MARGIN = 1, FUN = function(x){max(abs(x))}))
 
-#comp_loadings1$trial <- as.vector(apply(comp_loadings, MARGIN = 1, FUN = function(x){max(abs(x))}))
-
-#vip::vip(pls_fit1, num_features=20, aesthetics =aes(fill ="#0083b8"))+theme_minimal()+
-#   ylab("Importance") + ggtitle("Variable Importance for Top 20 Features ")+
+# Optional: VIP plot for top 20 features (currently commented out)
+# vip::vip(pls_fit1, num_features = 20, aesthetics = aes(fill = "#0083b8")) + 
+#   theme_minimal() + ylab("Importance") + 
+#   ggtitle("Variable Importance for Top 20 Features") + 
 #   theme(plot.title = element_text(hjust = 0.5, colour = "black", size = 22),
-#         axis.title = element_text(colour = "black", size = 16))+coord_flip()
+#         axis.title = element_text(colour = "black", size = 16)) + coord_flip()
 # ggsave("vis.png")
 
-#vip_sele <- vip::vip(pls_fit1)# ten most important variables
-
-
-# select variables with VIP score above 1
-
+# Extract VIP scores as a data frame
 varimp_vec_df <- varimp_vec[[1]]
 varimp_vec_df$var_name <- rownames(varimp_vec_df)
-selected_vars <- varimp_vec_df[varimp_vec_df$Overall>selected_vip, "var_name"]
-selected_vars_pls<- selected_vars
 
-#unique(c(selected_vars_pls[selected_vars_pls %in% row.names(LassoCof_NonZero)], row.names(LassoCof_NonZero)[ row.names(LassoCof_NonZero) %in% selected_vars_pls]))
-#selected_vars1 <- rbind(selected_vars, colSums(selected_vars)>0)[3, ]
+# Select features with overall VIP score greater than the selected threshold
+selected_vars <- varimp_vec_df[varimp_vec_df$Overall > selected_vip, "var_name"]
+selected_vars_pls <- selected_vars  # Store selected variables for reuse
 
+# Optional: check overlap with LASSO-selected features (commented out)
+# unique(c(selected_vars_pls[selected_vars_pls %in% row.names(LassoCof_NonZero)],
+#          row.names(LassoCof_NonZero)[row.names(LassoCof_NonZero) %in% selected_vars_pls]))
 
-###Find another list features correlated with the first 2 PCs
-
+### Create a dataframe of selected PLS features
 selected_vars1_df <- data.frame(features = selected_vars)
 
+# Save selected features to CSV
 write.csv(x = selected_vars1_df, file = "plsselected.csv", row.names = TRUE)
-#########################
 
+############ Save data for the selected genes ############
 
-############Save data for the selected genes
+# Load the list of selected features
 plsselected <- read.csv(file = "plsselected.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
+
+# Load the full dataset
 Data <- read.csv(file = "model_data.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 
+# Subset the dataset to only include selected features
+plsData <- Data[, names(Data) %in% plsselected$features]
 
-plsData <- Data[, names(Data)%in%plsselected$features]
+# Add the class label back to the new dataset
 plsData$CLASS <- Data$CLASS[match(row.names(plsData), row.names(Data))]
+
+# Final plsData now contains only selected features + CLASS for modeling
+
 
 ############Save Final Data from Lasso
 plsData$CancerType <- plsData$CLASS
