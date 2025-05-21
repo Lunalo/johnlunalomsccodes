@@ -14,7 +14,7 @@ from tensorflow import keras  # high-level API for building neural networks
 from tensorflow.keras import layers  # to define neural network layers
 
 # %% SET WORKING DIRECTORY AND LOAD DATA
-os.chdir("/Users/johnlunalo/.../Project")  # change current directory to where the dataset is stored
+#os.chdir("/Users/johnlunalo/.../Project")  # change current directory to where the dataset is stored
 
 Data = pd.read_csv("plsDataLatest.csv")  # load the dataset as a pandas DataFrame
 
