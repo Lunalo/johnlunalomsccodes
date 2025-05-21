@@ -6,111 +6,185 @@ setwd("/Users/johnlunalo/Library/CloudStorage/OneDrive-Personal/Masters Thesis A
 
 
 
+# ==============================================
+# STEP 1: Read Raw Gene Expression Data
+# ==============================================
+
+# Load dataset from CSV(gene expression data + CLASS column)
 Data <- read.csv(file = "model_data.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 
-Data$CLASS <- ifelse(Data$CLASS == "BRCA", 1, ifelse(Data$CLASS == "COAD", 2, ifelse(Data$CLASS == "LUAD", 3, ifelse(Data$CLASS == "OV", 4, 5))))
+# Convert categorical class labels to numeric (for glmnet multinomial model)
+Data$CLASS <- ifelse(Data$CLASS == "BRCA", 1, 
+               ifelse(Data$CLASS == "COAD", 2, 
+               ifelse(Data$CLASS == "LUAD", 3, 
+               ifelse(Data$CLASS == "OV", 4, 5))))  # "THCA" assigned 5
+
+# View distribution of classes
 table(Data$CLASS)
+
+# ==============================================
+# STEP 2: Load Libraries
+# ==============================================
 
 library(tidyverse)
 library(caret)
 library(glmnet)
 
-x <- model.matrix(CLASS~., Data)[,-ncol(Data)]
-y <- Data[,which(names(Data) %in% c("CLASS"))]
-set.seed(123) 
-cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "multinomial") #binomial_multinomial
+# ==============================================
+# STEP 3: Fit Multinomial LASSO Model
+# ==============================================
+
+# Create design matrix (predictors), exclude intercept column
+x <- model.matrix(CLASS ~ ., Data)[, -ncol(Data)]
+
+# Set response variable
+y <- Data[, "CLASS"]
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Perform cross-validated LASSO with multinomial outcome
+cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "multinomial")
+
+# Plot cross-validated error vs. lambda
 plot(cv.lasso)
 
-cv.lasso$lambda.min
+# Extract lambda values:
+cv.lasso$lambda.min  # Best lambda minimizing CV error
+cv.lasso$lambda.1se  # Most regularized model within 1SE of the minimum
 
-cv.lasso$lambda.1se
-
+# Extract coefficient matrix at optimal lambda
 coef(cv.lasso, cv.lasso$lambda.min)
+
+# Store coefficients in object
 Coef <- coef(cv.lasso, cv.lasso$lambda.min)
-write.csv(x = as.matrix(Coef), file = "Coef.csv", row.names = TRUE)
-#Multi Class
+
+# Save coefficients to CSV (each class gets its own column)
+write.csv(as.matrix(Coef), "Coef.csv", row.names = TRUE)
+
+# Combine coefficient lists for all classes into a single matrix
 best_alasso_coef2 <- do.call(cbind, coef(cv.lasso, cv.lasso$lambda.min))
 
+# Save the combined coefficients
+write.csv(as.matrix(best_alasso_coef2), "Coef.csv", row.names = TRUE)
 
-write.csv(x = as.matrix(best_alasso_coef2), file = "Coef.csv", row.names = TRUE)
+# Convert coefficients to a data frame
 best_alasso_coef2 <- as.data.frame(as.matrix(best_alasso_coef2))
 
+# ==============================================
+# STEP 4: Extract Non-Zero Coefficients
+# ==============================================
 
+# Read the saved coefficient matrix (excluding intercept rows)
+ResultFS <- read.csv("Coef.csv", header = TRUE, stringsAsFactors = TRUE)[-c(1:2), ]
 
-ResultFS <- read.csv(file = "Coef.csv", header = TRUE, stringsAsFactors = TRUE)[-c(1:2), ]
-
-
-names(ResultFS)[2:ncol(ResultFS)]<- c("A1", "B1", "C1","D1","E1")
+# Rename class columns
+names(ResultFS)[2:ncol(ResultFS)] <- c("A1", "B1", "C1", "D1", "E1")
 row.names(ResultFS) <- ResultFS$X
-ResultFS <- ResultFS[, 2:ncol(ResultFS)]
+ResultFS <- ResultFS[, -1]  # Drop the original row-name column
 
+# Filter features with at least one non-zero coefficient across classes
+LassoCof_NonZero <- ResultFS[ResultFS$A1 != 0 | ResultFS$B1 != 0 | 
+                             ResultFS$C1 != 0 | ResultFS$D1 != 0 | 
+                             ResultFS$E1 != 0, ]
 
-LassoCof_NonZero <- ResultFS[ResultFS$A1 != 0 | ResultFS$B1 != 0 | ResultFS$C1 != 0 | ResultFS$D1 != 0 | ResultFS$E1 != 0,]
-#utils::View(ResultFS)
+# Save selected features to CSV
+write.csv(LassoCof_NonZero, "LassoCof_NonZero.csv", row.names = TRUE)
 
-#LassoCof_NonZero <- LassoCof_NonZero[-1,]
+# ==============================================
+# STEP 5: Filter Original Data by Selected Genes
+# ==============================================
 
-write.csv(x = LassoCof_NonZero, file = "LassoCof_NonZero.csv", row.names = TRUE)
-#########################
+# Read list of selected features
+LassoCoef <- read.csv("LassoCof_NonZero.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 
+# Reload original data
+Data <- read.csv("model_data.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 
-# Get the data of the 162 selected genes 
-LassoCoef <- read.csv(file = "LassoCof_NonZero.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
-Data <- read.csv(file = "model_data.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
-
-
+# Keep only selected features (genes)
 LassoData <- Data[row.names(LassoCoef)]
+
+# Add back CLASS variable
 LassoData$CLASS <- Data$CLASS[match(row.names(LassoData), row.names(Data))]
 
-############Save Final Data from Lasso
+# Rename and save the filtered dataset
 LassoData$CancerType <- LassoData$CLASS
-LassoData <- LassoData[, -which(names(LassoData) =="CLASS")]
-write.csv(x = LassoData, file = "LassoDataLatest.csv", row.names = TRUE)
+LassoData <- LassoData[, -which(names(LassoData) == "CLASS")]
+write.csv(LassoData, "LassoDataLatest.csv", row.names = TRUE)
 
+# ==============================================
+# STEP 6: Partition Final Data for Modeling
+# ==============================================
 
-#partition the data
-Data <- read.csv(file = "LassoDataLatest.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
-Data$CancerType <- ifelse(Data$CancerType == "BRCA", 1, ifelse(Data$CancerType == "COAD", 2, ifelse(Data$CancerType == "LUAD", 3, ifelse(Data$CancerType == "OV", 4, 5))))
+# Load the processed dataset with selected genes
+Data <- read.csv("LassoDataLatest.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
+
+# Convert class names to numeric
+Data$CancerType <- ifelse(Data$CancerType == "BRCA", 1, 
+                    ifelse(Data$CancerType == "COAD", 2, 
+                    ifelse(Data$CancerType == "LUAD", 3, 
+                    ifelse(Data$CancerType == "OV", 4, 5))))  # THCA = 5
+
 library(glmnet)
 set.seed(18062019)
 
+# Split data into training (70%) and testing (30%)
+trainIndex <- createDataPartition(Data$CancerType, p = .70, list = FALSE)
+trainData <- Data[trainIndex, ]
+testData  <- Data[-trainIndex, ]
 
-trainIndex <- createDataPartition(Data$CancerType,p=.70,list=FALSE)
-trainData <- Data[trainIndex,]
-testData  <- Data[-trainIndex,]
-Xtrain <- as.matrix(trainData[,-which(names(trainData) %in% c("CancerType"))])
-Ytrain <- as.matrix(trainData[,which(names(trainData) %in% c("CancerType"))])
-Ytrain[,1]<- as.factor(Ytrain[,1])
+# Prepare feature matrices and labels for training
+Xtrain <- as.matrix(trainData[, -which(names(trainData) %in% c("CancerType"))])
+Ytrain <- as.matrix(trainData[, "CancerType"])
+Ytrain[, 1] <- as.factor(Ytrain[, 1])
 
-Xtest <- as.matrix(testData[,-which(names(testData) %in% c("CancerType"))])
-Ytest <- as.matrix(testData[,which(names(testData) %in% c("CancerType"))])
-Ytest[,1]<- as.factor(Ytest[,1])
+# Prepare feature matrices and labels for testing
+Xtest <- as.matrix(testData[, -which(names(testData) %in% c("CancerType"))])
+Ytest <- as.matrix(testData[, "CancerType"])
+Ytest[, 1] <- as.factor(Ytest[, 1])
 
+# ==============================================
+# STEP 7: Prepare for SVM Training
+# ==============================================
 
-set.seed(849)
+# Reassign numeric class labels to original names (for reporting and ROC)
+trainData$CancerType <- ifelse(trainData$CancerType == 1, "BRCA", 
+                         ifelse(trainData$CancerType == 2, "COAD", 
+                         ifelse(trainData$CancerType == 3, "LUAD", 
+                         ifelse(trainData$CancerType == 4, "OV", "THCA"))))
 
+testData$CancerType <- ifelse(testData$CancerType == 1, "BRCA", 
+                        ifelse(testData$CancerType == 2, "COAD", 
+                        ifelse(testData$CancerType == 3, "LUAD", 
+                        ifelse(testData$CancerType == 4, "OV", "THCA"))))
 
+# ==============================================
+# STEP 8: Setup Parallel Processing for SVM Training
+# ==============================================
 
-#SVM
-
-trainData$CancerType <- ifelse(trainData$CancerType == 1, "BRCA", ifelse(trainData$CancerType == 2, "COAD", ifelse(trainData$CancerType == 3, "LUAD", ifelse(trainData$CancerType == 4, "OV", "THCA"))))
-testData$CancerType <- ifelse(testData$CancerType == 1, "BRCA", ifelse(testData$CancerType == 2, "COAD", ifelse(testData$CancerType == 3, "LUAD", ifelse(testData$CancerType == 4, "OV", "THCA"))))
 library(doParallel)
+
+# Detect number of cores and set up parallel cluster (excluding 1 for OS)
 nocores <- detectCores() - 1
 cl <- makeCluster(nocores)
 registerDoParallel(cl)
 
-# Training SVM Models
-library(dplyr)         # Used by caret
-library(kernlab)       # support vector machine 
-library(pROC)	       # plot the ROC curves
+# ==============================================
+# STEP 9: Define Train Control Parameters for SVM
+# ==============================================
 
-ctrlSVM <- caret::trainControl(method="CV",   # 10 folds cross validation
-                        number = 10,
-                        classProbs=TRUE,
-                        savePredictions = TRUE,
-                        allowParallel = TRUE,
-                        sampling = "smote"
+library(dplyr)         # For data manipulation used in caret
+library(kernlab)       # SVM algorithms (e.g., radial, linear, polynomial)
+library(pROC)          # For ROC curves
+
+# Define cross-validation and sampling strategy
+ctrlSVM <- caret::trainControl(
+  method = "CV",              # Cross-validation
+  number = 10,                # 10-fold CV
+  classProbs = TRUE,          # Compute class probabilities
+  savePredictions = TRUE,     # Retain CV predictions
+  allowParallel = TRUE,       # Use parallel processing
+  sampling = "smote"          # Apply SMOTE for class balancing
 )
 
 
