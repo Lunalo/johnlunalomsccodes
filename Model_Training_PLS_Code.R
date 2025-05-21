@@ -805,29 +805,41 @@ svmLinear_auc <- c("SVM Linear Multi-class area under the curve" = auc(roc.multi
 
 
 # --- SVM Polynomial ---
-
+# Calculate 95% confidence interval for Cohen's Kappa from the confusion matrix
 confint(Kappa(svmPoly.Conf$table))
+
+# Evaluate F1 Score for class "BRCA"
 F1_Score(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
+
+# Evaluate precision for class "BRCA"
 Precision(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
+
+# Evaluate sensitivity (recall) for class "BRCA"
 Sensitivity(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
+
+# Specificity and binary AUC are commented out (likely not applicable for multiclass)
 # Specificity(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
 # AUC(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
 
+# Calculate test statistics (sensitivity, specificity, predictive values) using confusion matrix
 epi.tests(svmPoly.Conf$table, conf.level = 0.95)
+
+# Compute multi-class ROC curve
 roc.multi <- multiclass.roc(as.ordered(svmPoly.pred), as.ordered(testData$CancerType))
+
+# Extract Area Under the Curve (AUC)
 auc(roc.multi)
+
+# Save SVM Polynomial model AUC
 svmploy_auc <- c("SVM Polynomial Multi-class area under the curve" = auc(roc.multi))
 
 
 # --- ANN ---
-
 confint(Kappa(ANNModel.Conf$table))
 F1_Score(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-# Specificity(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-# AUC(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-
+# Specificity and AUC skipped
 epi.tests(ANNModel.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(ANNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
@@ -835,14 +847,10 @@ ann_auc <- c("ANN Multi-class area under the curve" = auc(roc.multi))
 
 
 # --- KNN ---
-
 confint(Kappa(KNNModel.Conf$table))
 F1_Score(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-# Specificity(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-# AUC(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-
 epi.tests(KNNModel.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(KNNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
@@ -850,19 +858,16 @@ knn_auc <- c("KNN Multi-class area under the curve" = auc(roc.multi))
 
 
 # --- Random Forest ---
-
 confint(Kappa(rfmodel.Conf$table))
 F1_Score(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
-# Specificity(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
-# AUC(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
-
 epi.tests(rfmodel.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(rfmodel.pred), as.ordered(testData$CancerType))
 rf_auc <- c("random forest Multi-class area under the curve" = auc(roc.multi))
 
-#XgBoost
+
+# --- XgBoost ---
 confint(Kappa(boostmodel.Conf$table))
 F1_Score(as.factor(boostmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(boostmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
@@ -872,367 +877,547 @@ roc.multi <- multiclass.roc(as.ordered(boostmodel.pred), as.ordered(testData$Can
 auc(roc.multi)
 xgboost_auc <- c("xgboost Multi-class area under the curve" = auc(roc.multi))
 
-models_auc <- data.frame(model = c(names(xgboost_auc), names(rf_auc),names(knn_auc),names(ann_auc),
-                                   names(svmploy_auc),names(svmLinear_auc),names(svmradial_auc)),
-                         AUC = c(xgboost_auc, rf_auc,knn_auc,ann_auc,
-                                 svmploy_auc,svmLinear_auc,svmradial_auc))
 
-pls_models <- list (models_auc = models_auc, ann_metrics= valuation_kapa_ann_pls,knn_metrics = valuation_kapa_knn_pls,boost_metrics= valuation_kapa_boost_pls,
-                    rf_metrics=valuation_kapa_rf_pls, svmpoly_metrics = valuation_kapa_svmploy_pls, svmlinear_metrics = valuation_kapa_svmlinear_pls,
-                    svmradial_metrics = valuation_kapa_svmradial_pls,  ann = valuation_table_ann_pls, knn= valuation_table_knn_pls, svmradial= valuation_table_svmradial_pls,
-                    svmLinear = valuation_table_svmlinear_pls, svmpoly = valuation_table_svmpoly_pls, rf = evaluation_table_rf_pls, boost = evaluation_table_boost_pls)
+# --- Consolidating AUC for All Models ---
+models_auc <- data.frame(
+  model = c(
+    names(xgboost_auc), names(rf_auc), names(knn_auc), names(ann_auc),
+    names(svmploy_auc), names(svmLinear_auc), names(svmradial_auc)
+  ),
+  AUC = c(
+    xgboost_auc, rf_auc, knn_auc, ann_auc,
+    svmploy_auc, svmLinear_auc, svmradial_auc
+  )
+)
 
+# --- Consolidating all evaluation outputs into a list ---
+pls_models <- list(
+  models_auc = models_auc, 
+  ann_metrics = valuation_kapa_ann_pls,
+  knn_metrics = valuation_kapa_knn_pls,
+  boost_metrics = valuation_kapa_boost_pls,
+  rf_metrics = valuation_kapa_rf_pls,
+  svmpoly_metrics = valuation_kapa_svmploy_pls,
+  svmlinear_metrics = valuation_kapa_svmlinear_pls,
+  svmradial_metrics = valuation_kapa_svmradial_pls,
+  ann = valuation_table_ann_pls,
+  knn = valuation_table_knn_pls,
+  svmradial = valuation_table_svmradial_pls,
+  svmLinear = valuation_table_svmlinear_pls,
+  svmpoly = valuation_table_svmpoly_pls,
+  rf = evaluation_table_rf_pls,
+  boost = evaluation_table_boost_pls
+)
+
+# --- Export all results to Excel ---
 library(openxlsx)
-write.xlsx(pls_models, "pls_metrics_results.xlsx", rowNames=T, overwrite = TRUE)
+write.xlsx(pls_models, "pls_metrics_results.xlsx", rowNames = TRUE, overwrite = TRUE)
 
 
-#===================================== SVM Radial
+# === SVM Radial Probabilities Preparation for Output ===
 library(caret)
-library(dplyr)         # Used by caret
-library(kernlab)       # support vector machine 
-library(pROC)	  
+library(dplyr)
+library(kernlab)
+library(pROC)
 
-SVMR_pred <- predict(svmRadial.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+# Predict class probabilities for SVM Radial model on scaled test data
+SVMR_pred <- predict(
+  svmRadial.tune$finalModel,
+  scale(testData[, -which(names(testData) %in% c("CancerType"))]),
+  type = 'prob'
+)
+
+# Convert to dataframe for manipulation
 SVMR_pred <- data.frame(SVMR_pred)
+
+# Rename columns to indicate that predictions came from SVM Radial model
 colnames(SVMR_pred) <- paste0(colnames(SVMR_pred), "_pred_SVM_radial")
 
-
+# Create a new dataframe with true CancerType labels for future binding or export
 data <- data.frame(CancerType = testData$CancerType)
 
-# Create dummy variables
+
+# --- SVM Radial Evaluation and Plotting ---
+
+# Convert true class labels to one-hot encoded dummy variables
 true_label <- model.matrix(~ CancerType - 1, data = data)
+
+# Load stringr to manipulate column names
 library(stringr)
+
+# Rename columns to indicate these are the true labels (e.g., "_true")
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-
+# Combine true labels with predicted probabilities from SVM Radial model
 SVMR_final_df <- cbind(true_label, SVMR_pred)
-SVMR_roc_res <- multiROC::multi_roc(SVMR_final_df, force_diag=T)
-SVMR_pr_res <- multiROC::multi_pr(SVMR_final_df, force_diag=T)
 
+# Compute multi-class ROC metrics using multiROC package
+SVMR_roc_res <- multiROC::multi_roc(SVMR_final_df, force_diag = TRUE)
+
+# Compute multi-class Precision-Recall metrics
+SVMR_pr_res <- multiROC::multi_pr(SVMR_final_df, force_diag = TRUE)
+
+# Extract data in a format suitable for ggplot2 ROC plotting
 plot_roc_df_SVMR <- multiROC::plot_roc_data(SVMR_roc_res)
+
+# Extract data for ggplot2 PR curve plotting
 plot_pr_df_SVMR <- multiROC::plot_pr_data(SVMR_pr_res)
 
+# Load ggplot2 (though require is used here, it's better to use library for clarity)
 require(ggplot2)
 library(multiROC)
 
-ggplot(plot_roc_df_SVMR, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# Plot ROC curves for SVM Radial model
+ggplot(plot_roc_df_SVMR, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) + # Plot ROC lines
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),  # Reference diagonal
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1,
+                                         linetype = "solid", colour = "black"))
 
+# Save ROC plot
 ggsave("pls_svmradial_roc_curve.png")
 
 
-ggplot(plot_pr_df_SVMR, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
+# Plot Precision-Recall curve for SVM Radial
+ggplot(plot_pr_df_SVMR, aes(x = Recall, y = Precision)) + 
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) + 
   theme_bw() + 
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(), 
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
 
+# Save PR plot
 ggsave("pls_plot_pr_df_SVM_radial.png")
 
-#===================================== SVM Linear
 
+# --- SVM Linear Evaluation ---
 
-SVMPL_pred <- predict(svmLinear.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
+# Predict class labels using final SVM Linear model
+SVMPL_pred <- predict(svmLinear.tune$finalModel,
+                      scale(testData[, -which(names(testData) %in% c("CancerType"))]))
+
+# Convert predicted labels to dataframe
 SVMPL_pred <- data.frame(SVMPL_pred)
+
+# Rename predicted column to indicate source model
 colnames(SVMPL_pred) <- paste0(colnames(SVMPL_pred), "_pred_SVM_Linear")
 
-
+# Recreate data frame with true labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# Generate dummy variables for true labels
 true_label <- model.matrix(~ CancerType - 1, data = data)
+
+# Rename columns for true labels
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-data_pred <- data.frame(CancerType = SVMPL_pred$SVMPL_pred_pred_SVML)
-# Create dummy variables
+# (Appears to be incorrect or unused: data_pred is created but not used or corrected)
+# data_pred <- data.frame(CancerType = SVMPL_pred$SVMPL_pred_pred_SVML)
+
+# Recalculate dummy variables for predicted labels (should match factor levels)
 SVMPL_pred <- model.matrix(~ CancerType - 1, data = data)
+
+# Rename predicted label columns to indicate SVM Linear source
 colnames(SVMPL_pred) <- paste0(str_replace(colnames(SVMPL_pred), pattern = "CancerType", ""), "_pred_SVM_Linear")
 
-
-
-
-
+# Combine true and predicted labels into one dataframe
 SVMPL_final_df <- cbind(true_label, SVMPL_pred)
-SVMPL_roc_res <- multi_roc(SVMPL_final_df, force_diag=T)
-SVMPL_pr_res <- multi_pr(SVMPL_final_df, force_diag=T)
 
+# Compute multi-class ROC
+SVMPL_roc_res <- multi_roc(SVMPL_final_df, force_diag = TRUE)
+
+# Compute multi-class PR
+SVMPL_pr_res <- multi_pr(SVMPL_final_df, force_diag = TRUE)
+
+# Prepare ROC and PR data for plotting
 plot_roc_df_SVMPL <- plot_roc_data(SVMPL_roc_res)
 plot_pr_df_SVML <- plot_pr_data(SVMPL_pr_res)
 
+# ===================================== SVM Linear: ROC Curve Plot
 
+# Plotting the ROC curve for the SVM Linear model using ggplot
+ggplot(plot_roc_df_SVMPL, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +   # Draw ROC curve line for each class
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),               # Diagonal reference line (random performance)
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +                                                     # Apply clean black & white theme
+  theme(
+    plot.title = element_text(hjust = 0.5),                         # Center the title
+    text = element_text(size = 14),                                # Base font size
+    legend.justification = c(1, 0), legend.position = c(.98, .05), # Place legend at bottom-right
+    legend.title = element_blank(),                                # Hide legend title
+    legend.background = element_rect(fill = NULL, size = 1,        # Draw black border around legend
+                                     linetype = "solid", colour = "black"))
 
-ggplot(plot_roc_df_SVMPL, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-
+# Save ROC plot as PNG
 ggsave("pls_svmlinear_roc_curve.png")
 
-ggplot(plot_pr_df_SVML, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+# ===================================== SVM Linear: Precision-Recall Curve Plot
 
+ggplot(plot_pr_df_SVML, aes(x = Recall, y = Precision)) + 
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +   # Draw PR curve
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 14),
+    legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1,
+                                     linetype = "solid", colour = "black"))
+
+# Save PR plot as PNG
 ggsave("pls_plot_pr_df_svmlinear.png")
 
-#===================================== SVM Polynomial
 
-SVMP_pred <- predict(svmPoly.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
+# ===================================== SVM Polynomial: Predictions and Evaluation
+
+# Predict class labels using SVM Polynomial model
+SVMP_pred <- predict(svmPoly.tune$finalModel, scale(testData[, -which(names(testData) %in% c("CancerType"))]))
 SVMP_pred <- data.frame(SVMP_pred)
-colnames(SVMP_pred) <- paste0(colnames(SVMP_pred), "_pred_SVM_polynomial")
+colnames(SVMP_pred) <- paste0(colnames(SVMP_pred), "_pred_SVM_polynomial")  # Rename predicted columns
 
-
+# Create a new data frame containing true class labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# Convert true labels to one-hot encoding
 true_label <- model.matrix(~ CancerType - 1, data = data)
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-data_pred <- data.frame(CancerType = SVMP_pred$SVMP_pred_pred_SVMP)
-# Create dummy variables
+# NOTE: this line appears to attempt using predicted values incorrectly (likely redundant)
+# data_pred <- data.frame(CancerType = SVMP_pred$SVMP_pred_pred_SVMP)
+
+# Again, dummy variables incorrectly generated from 'data' (should be from predictions)
+# Fix needed here - SVMPL_pred likely a copy-paste error
 SVMPL_pred <- model.matrix(~ CancerType - 1, data = data)
 colnames(SVMPL_pred) <- paste0(str_replace(colnames(SVMPL_pred), pattern = "CancerType", ""), "_pred_SVM_polynomial")
 
-
+# Combine true labels and predicted dummy matrix
 SVMP_final_df <- cbind(true_label, SVMPL_pred)
-SVMP_roc_res <- multi_roc(SVMP_final_df, force_diag=T)
-SVMP_pr_res <- multi_pr(SVMP_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR metrics
+SVMP_roc_res <- multi_roc(SVMP_final_df, force_diag = TRUE)
+SVMP_pr_res <- multi_pr(SVMP_final_df, force_diag = TRUE)
+
+# Prepare data for plotting
 plot_roc_df_SVMP <- plot_roc_data(SVMP_roc_res)
 plot_pr_df_SVMP <- plot_pr_data(SVMP_pr_res)
 
+# ===================================== SVM Polynomial: ROC Curve Plot
 
-
-ggplot(plot_roc_df_SVMP, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
+ggplot(plot_roc_df_SVMP, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
   geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
   theme_bw() + 
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(), 
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
 
 ggsave("pls_svmpoly_roc_curve.png")
 
+# ===================================== SVM Polynomial: Precision-Recall Curve Plot
 
-ggplot(plot_pr_df_SVMP, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
+ggplot(plot_pr_df_SVMP, aes(x = Recall, y = Precision)) + 
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) + 
   theme_bw() + 
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(), 
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
 
 ggsave("pls_plot_pr_df_svmpoly.png")
 
-#===================================== Artificial Neural Networks
 
-ANN_pred <- predict(ANNModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'raw')
+# ===================================== Artificial Neural Networks (ANN): Evaluation
+
+# Predict class probabilities from ANN model
+ANN_pred <- predict(ANNModel.tune$finalModel, 
+                    scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                    type = 'raw')
 ANN_pred <- data.frame(ANN_pred)
+
+# Rename predicted columns to indicate ANN model source
 colnames(ANN_pred) <- paste(colnames(ANN_pred), "_pred_ANN")
 
-
-
+# Generate dummy variables for true class labels
 true_label <- dummies::dummy(testData$CancerType, sep = ".")
-colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))
-colnames(true_label) <- paste(colnames(true_label), "_true")
+colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))  # Clean column names
+colnames(true_label) <- paste(colnames(true_label), "_true")      # Append "_true"
 
-
-
+# Combine true labels and predicted probabilities
 ANN_final_df <- cbind(true_label, ANN_pred)
-ANN_roc_res <- multi_roc(ANN_final_df, force_diag=T)
-ANN_pr_res <- multi_pr(ANN_final_df, force_diag=T)
 
+# Compute multi-class ROC and PR curves
+ANN_roc_res <- multi_roc(ANN_final_df, force_diag = TRUE)
+ANN_pr_res <- multi_pr(ANN_final_df, force_diag = TRUE)
+
+# Extract ROC and PR data for plotting
 plot_roc_df_ANN <- plot_roc_data(ANN_roc_res)
 plot_pr_df_ANN <- plot_pr_data(ANN_pr_res)
 
+# ===================================== ANN: ROC Curve Plot
 
-ggplot(plot_roc_df_ANN, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
+ggplot(plot_roc_df_ANN, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +
   geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
   theme_bw() + 
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(), 
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+
 ggsave("pls_ann_roc_curve.png")
-ggplot(plot_pr_df_ANN, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
+
+# ===================================== ANN: Precision-Recall Curve Plot
+
+ggplot(plot_pr_df_ANN, aes(x = Recall, y = Precision)) + 
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) + 
   theme_bw() + 
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(), 
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+
 ggsave("pls_plot_pr_df_ann.png")
 
-#===================================== K-nearest Nighbor
+# ================================
+# K-Nearest Neighbors (KNN)
+# ================================
 
-KNN_pred <- predict(KNNModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+# Predict class probabilities using the tuned KNN model on scaled test data
+KNN_pred <- predict(KNNModel.tune$finalModel, 
+                    scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                    type = 'prob')
+
+# Convert predictions to a dataframe for further manipulation
 KNN_pred <- data.frame(KNN_pred)
+
+# Rename predicted columns to indicate KNN source
 colnames(KNN_pred) <- paste0(colnames(KNN_pred), "_pred_KNN")
 
-
+# Extract true class labels into a separate dataframe
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# Create one-hot encoded dummy variables from true labels
 true_label <- model.matrix(~ CancerType - 1, data = data)
+
+# Rename columns to indicate they are true labels
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
+# Combine true labels and predicted probabilities into one dataframe
 KNN_final_df <- cbind(true_label, KNN_pred)
-KNN_roc_res <- multi_roc(KNN_final_df, force_diag=T)
-KNN_pr_res <- multi_pr(KNN_final_df, force_diag=T)
 
+# Compute ROC curve data for all classes
+KNN_roc_res <- multi_roc(KNN_final_df, force_diag = TRUE)
+
+# Compute precision-recall curve data for all classes
+KNN_pr_res <- multi_pr(KNN_final_df, force_diag = TRUE)
+
+# Extract data for plotting ROC curves
 plot_roc_df_KNN <- plot_roc_data(KNN_roc_res)
+
+# Extract data for plotting PR curves
 plot_pr_df_KNN <- plot_pr_data(KNN_pr_res)
 
-require(ggplot2)
+require(ggplot2)  # Load ggplot2 if not already loaded
 
-ggplot(plot_roc_df_KNN, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# --- Plot ROC Curve for KNN ---
+ggplot(plot_roc_df_KNN, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # ROC curves per class
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),             # Diagonal reference line
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-ggsave("pls_knn_roc_curve.png")
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+ggsave("pls_knn_roc_curve.png")  # Save the ROC plot
 
-ggplot(plot_pr_df_KNN, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+# --- Plot PR Curve for KNN ---
+ggplot(plot_pr_df_KNN, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # PR curves per class
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+ggsave("pls_plot_pr_df_knn.png")  # Save the PR plot
 
-ggsave("pls_plot_pr_df_knn.png")
 
+# ================================
+# Random Forest (RF)
+# ================================
 
-######Xgboost
-#===================================== Xgboost
+# Predict class probabilities using the tuned RF model
+rf_pred <- predict(RFModel.tune$finalModel, 
+                   scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+                   type = 'prob')
 
-rf_pred <- predict(RFModel.tune$finalModel, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type = 'prob')
+# Convert predictions to a dataframe
 rf_pred <- data.frame(rf_pred)
+
+# Rename predicted columns to indicate Random Forest source
 colnames(rf_pred) <- paste0(colnames(rf_pred), "_pred_random_forest")
 
-
+# Extract true labels
 data <- data.frame(CancerType = testData$CancerType)
-# Create dummy variables
+
+# One-hot encode the true class labels
 true_label <- model.matrix(~ CancerType - 1, data = data)
+
+# Label columns as true class indicators
 colnames(true_label) <- paste0(str_replace(colnames(true_label), pattern = "CancerType|\\S", ""), "_true")
 
-
-
+# Combine true and predicted data
 rf_final_df <- cbind(true_label, rf_pred)
-rf_roc_res <- multi_roc(rf_final_df, force_diag=T)
-rf_pr_res <- multi_pr(rf_final_df, force_diag=T)
 
+# Generate ROC and PR evaluation objects
+rf_roc_res <- multi_roc(rf_final_df, force_diag = TRUE)
+rf_pr_res <- multi_pr(rf_final_df, force_diag = TRUE)
+
+# Extract ROC and PR plot data
 plot_roc_df_rf <- plot_roc_data(rf_roc_res)
 plot_pr_df_rf <- plot_pr_data(rf_pr_res)
 
 require(ggplot2)
 
-ggplot(plot_roc_df_rf, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
+# --- Plot ROC Curve for Random Forest ---
+ggplot(plot_roc_df_rf, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # ROC curves per class
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),             # Diagonal (baseline) line
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
-ggsave("pls_rf_roc_curve.png")
+        legend.justification = c(1, 0), legend.position = c(.98, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+ggsave("pls_rf_roc_curve.png")  # Save the ROC plot
 
-ggplot(plot_pr_df_rf, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
+# --- Plot PR Curve for Random Forest ---
+ggplot(plot_pr_df_rf, aes(x = Recall, y = Precision)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # PR curves per class
+  theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+        legend.justification = c(1.2, 0), legend.position = c(.95, .05),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = NULL, size = 1, 
+                                         linetype = "solid", colour = "black"))
+ggsave("pls_plot_pr_df_rf.png")  # Save the PR plot
 
-ggsave("pls_plot_pr_df_rf.png")
+###### XGBoost
+# ================================
+# Generate XGBoost Class Predictions and Evaluate
+# ================================
 
+# Predict class probabilities using the tuned XGBoost model
+# The result is a matrix/data.frame where each column is the probability of a class
+xgb_pred <- data.frame(
+  predict(XGBModel.tune, 
+          scale(testData[, -which(names(testData) %in% c("CancerType"))]), 
+          type = "prob")
+)
 
+# Convert probability predictions to one-hot encoded format (hard classification)
+# For each row (sample), set the maximum probability class to 1, others to 0
+xgb_pred <- t(apply(xgb_pred, MARGIN = 1, FUN = function(x) {
+  ifelse(x == max(x), 1, 0)
+}))
 
-######Xgboost
-#===================================== Xgboost
-
-xgb_pred <- data.frame(predict(XGBModel.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]), type ="prob"))
-
-xgb_pred <- t(apply(xgb_pred, MARGIN = 1, FUN = function(x){ifelse(x==max(x), 1, 0)}))
-
+# Set column names to match the class names
+# (Assumes that testData$CancerType contains all unique class labels)
 names(xgb_pred) <- unique(testData$CancerType)
+
+# Append suffix to indicate XGBoost predictions
 colnames(xgb_pred) <- paste(colnames(xgb_pred), "_pred_xgboost")
 
 
+# ================================
+# Prepare True Labels for Evaluation
+# ================================
+
+# Convert true class labels into one-hot encoded matrix using dummy encoding
 true_label <- dummies::dummy(testData$CancerType, sep = ".")
+
+# Clean column names: remove any prefix before the class label (e.g., "CancerType.BRCA" -> "BRCA")
 colnames(true_label) <- gsub(".*?\\.", "", colnames(true_label))
+
+# Append suffix to indicate these are true labels
 colnames(true_label) <- paste(colnames(true_label), "_true")
 
 
-xgb_final_df <- cbind(true_label, xgb_pred)
-xgb_roc_res <- multi_roc(xgb_final_df, force_diag=T)
-xgb_pr_res <- multi_pr(xgb_final_df, force_diag=T)
+# ================================
+# Evaluate XGBoost Model using multiROC
+# ================================
 
+# Combine predicted labels and true labels into a single dataframe
+xgb_final_df <- cbind(true_label, xgb_pred)
+
+# Compute multi-class ROC curve data
+xgb_roc_res <- multi_roc(xgb_final_df, force_diag = TRUE)
+
+# Compute multi-class Precision-Recall curve data
+xgb_pr_res <- multi_pr(xgb_final_df, force_diag = TRUE)
+
+# Extract dataframes suitable for plotting with ggplot2
 plot_roc_df_xgb <- plot_roc_data(xgb_roc_res)
 plot_pr_df_xgb <- plot_pr_data(xgb_pr_res)
 
 
-ggplot(plot_roc_df_xgb, aes(x = 1-Specificity, y=Sensitivity)) +
-  geom_path(aes(color = Group, linetype=Method), size=1.1) +
-  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), 
-               colour='grey', linetype = 'dotdash', size=1.3) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1, 0), legend.position=c(.98, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
+# ================================
+# Plot ROC Curve for XGBoost
+# ================================
+
+ggplot(plot_roc_df_xgb, aes(x = 1 - Specificity, y = Sensitivity)) +
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # Draw ROC curve lines
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1),             # Diagonal reference line
+               colour = 'grey', linetype = 'dotdash', size = 1.3) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5), 
+    text = element_text(size = 14),
+    legend.justification = c(1, 0), 
+    legend.position = c(.98, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1, 
+                                     linetype = "solid", colour = "black")
+  )
+
+# Save the ROC plot as PNG
 ggsave("pls_xgb_roc_curve.png")
 
-ggplot(plot_pr_df_xgb, aes(x=Recall, y=Precision)) + 
-  geom_path(aes(color = Group, linetype=Method), size=1.1) + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 14),
-        legend.justification=c(1.2, 0), legend.position=c(.95, .05),
-        legend.title=element_blank(), 
-        legend.background = element_rect(fill=NULL, size=1, 
-                                         linetype="solid", colour ="black"))
 
+# ================================
+# Plot Precision-Recall (PR) Curve for XGBoost
+# ================================
+
+ggplot(plot_pr_df_xgb, aes(x = Recall, y = Precision)) + 
+  geom_path(aes(color = Group, linetype = Method), size = 1.1) +  # Draw PR curve lines
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5), 
+    text = element_text(size = 14),
+    legend.justification = c(1.2, 0), 
+    legend.position = c(.95, .05),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = NULL, size = 1, 
+                                     linetype = "solid", colour = "black")
+  )
+
+# Save the PR plot as PNG
 ggsave("pls_plot_pr_df_xgb.png")
-
-
-
-
-
-
