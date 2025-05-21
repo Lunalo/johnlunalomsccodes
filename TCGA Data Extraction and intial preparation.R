@@ -1,83 +1,104 @@
+######################################################################
+# TCGA RNA-Seq Analysis Script: Top Cancers in Women
+# Cancers: BRCA, LUAD, THCA, COAD, OV  ---> Major types of cancers in women
+# Steps: Download --> Prepare --> Preprocess --> Normalize --> Filter --> DEA
+# Author: John Ong’ala Lunalo
+######################################################################
+
+# Load Required Packages -----------------------------------------------------
 library(doParallel)
-ncores <- detectCores() - 1
+library(TCGAbiolinks)
+library(SummarizedExperiment)
+
+# Parallel Setup -------------------------------------------------------------
+ncores <- detectCores() - 1  # Use all but one core
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
-#setwd("C:\\Users\\John\\OneDrive\\Masters Thesis Analysis\\DataWindows\\Project")
+# Define Tumor Projects ------------------------------------------------------
+tumor_projects <- c("TCGA-BRCA", "TCGA-LUAD", "TCGA-THCA", "TCGA-COAD", "TCGA-OV")
 
-#setwd("/Users/johnlunalo/Library/CloudStorage/OneDrive-Personal/Masters Thesis Analysis/DataWindows/Project")
+# Query RNA-Seq Expression Data ---------------------------------------------
+query.exp <- GDCquery(
+  project = tumor_projects,
+  legacy = FALSE,
+  data.category = "Transcriptome Profiling",
+  data.type = "Gene Expression Quantification",
+  platform = "Illumina HiSeq",  # Corrected typo
+  file.type = "results",
+  experimental.strategy = "RNA-Seq",
+  sample.type = c("Primary Tumor")
+)
 
-library(SummarizedExperiment)
-library(TCGAbiolinks)
-query.exp <- GDCquery(project = c("TCGA-BRCA","TCGA-LUAD","TCGA-THCA","TCGA-COAD","TCGA-OV"),
-                      legacy = FALSE,
-                      data.category = "Transcriptome Profiling",
-                      data.type = "Gene Expression Quantification",
-                      platform = "lluminaHiSeq_RNASeq",
-                      #platform = "HT_HG-U133A",
-                      file.type = "results",
-                      experimental.strategy = "RNA-Seq",
-                      sample.type = c("Primary Tumor"))
-
-
+# Download Expression Files --------------------------------------------------
 GDCdownload(query.exp, files.per.chunk = 20)
 
+# Prepare Expression Object --------------------------------------------------
 AllTumor.exp <- GDCprepare(query = query.exp, save = TRUE, save.filename = "TopCancerinWomen.RDATA")
 
-#Save query details
+# Save Query & Expression Data -----------------------------------------------
 saveRDS(query.exp, "query_exp.RDS")
 saveRDS(AllTumor.exp, "AllTumor_exp.RDS")
-###########################################################################################################
 
-#####RUN FROM HERE
+# (OPTIONAL) Resume from saved objects ---------------------------------------
+# AllTumor.exp <- readRDS("AllTumor_exp.RDS")
+# query.exp <- readRDS("query_exp.RDS")
 
-AllTumor_exp <- readRDS("AllTumor_exp.RDS")
-query_exp <- readRDS("query_exp.RDS")
-
-#https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
-# get subtype information
-tumorvec <- c("luad", "brca", "coad","thca","ov")
+# Get Subtype Information ----------------------------------------------------
+tumorvec <- c("luad", "brca", "coad", "thca", "ov")
 dataSubt_list <- list()
-
-for(itum in tumorvec){
+for (itum in tumorvec) {
   tryCatch(
-  dataSubt_list[[itum]]<- TCGAquery_subtype(tumor = itum),
-  error= function(e)print(paste(itum, "missing in code list")))
+    dataSubt_list[[itum]] <- TCGAquery_subtype(tumor = itum),
+    error = function(e) message(paste("Subtype info missing for:", itum))
+  )
 }
 
-# get clinical data
-proj <- c("TCGA-BRCA", "TCGA-LUAD", "TCGA-OV", "TCGA-COAD", "TCGA-THCA")
-dataClin <- vector("list", length(proj))
-for (i in proj){
-  dataClin[[i]] <- GDCquery_clinic(project = i,"clinical")
-}
+# Download Clinical Data -----------------------------------------------------
+dataClin <- lapply(tumor_projects, function(proj) GDCquery_clinic(proj, type = "clinical"))
+names(dataClin) <- tumor_projects
 saveRDS(dataClin, "dataClin.RDS")
-#dataClin <- GDCquery_clinic(project = c("TCGA-HNSC", "TCGA-LGG", "TCGA-SARC", "TCGA-ESCA", "TCGA-UCEC", "TCGA-GBM", "TCGA-KIRC", "TCGA-PRAD", "TCGA-THCA", "TCGA-CESC", "TCGA-COAD", "TCGA-SKCM", "TCGA-LUSC", "TCGA-BRCA", "TCGA-LUAD", "TCGA-OV", "TCGA-UCS", "TCGA-ACC", "TCGA-DLBC", "TCGA-LIHC", "TCGA-KIRP", "TCGA-LAML", "TCGA-KICH", "TCGA-READ", "TCGA-TGCT", "TCGA-PAAD", "TCGA-PCPG", "TCGA-THYM", "TCGA-CHOL", "TCGA-MESO", "TCGA-UVM", "TCGA-BLCA", "TCGA-STAD"),"clinical") 
 
-# Which samples are primary solid tumor
-dataSmTP <- TCGAquery_SampleTypes(getResults(query_exp,cols="cases"),"TP") 
+# Identify Tumor and Normal Samples ------------------------------------------
+dataSmTP <- TCGAquery_SampleTypes(getResults(query.exp, cols = "cases"), "TP")
+dataSmNT <- TCGAquery_SampleTypes(getResults(query.exp, cols = "cases"), "NT")
 saveRDS(dataSmTP, "dataSmTP.RDS")
-dataSmTP <- readRDS("dataSmTP.RDS")
-# which samples are solid tissue normal
-dataSmNT <- TCGAquery_SampleTypes(getResults(query_exp,cols="cases"),"NT")
 
-dataPrep <- TCGAanalyze_Preprocessing(object = AllTumor.exp, cor.cut = 0.6)                      
+# Preprocessing --------------------------------------------------------------
+dataPrep <- TCGAanalyze_Preprocessing(object = AllTumor.exp, cor.cut = 0.6)
 
-dataNorm <- TCGAanalyze_Normalization(tabDF = dataPrep,
-                                      geneInfo = geneInfo,
-                                      method = "gcContent")                
+# Download Gene Info (needed for GC-content normalization) -------------------
+geneInfo <- TCGAbiolinks::get.GRCh.bioMart()
 
-dataFilt <- TCGAanalyze_Filtering(tabDF = dataNorm,
-                                  method = "quantile", 
-                                  qnt.cut =  0.25) 
+# Normalization --------------------------------------------------------------
+dataNorm <- TCGAanalyze_Normalization(
+  tabDF = dataPrep,
+  geneInfo = geneInfo,
+  method = "gcContent"
+)
+
+# Filtering ------------------------------------------------------------------
+dataFilt <- TCGAanalyze_Filtering(
+  tabDF = dataNorm,
+  method = "quantile",
+  qnt.cut = 0.25  # Keep top 75% expressed genes
+)
 saveRDS(dataFilt, "dataFilt.RDS")
 
-dataDEGs <- TCGAanalyze_DEA(mat1 = dataFilt[,dataSmNT],
-                            mat2 = dataFilt[,dataSmTP],
-                            Cond1type = "Normal",
-                            Cond2type = "Tumor",
-                            fdr.cut = 0.01 ,
-                            logFC.cut = 1,
-                            method = "glmLRT")
-
+# Differential Expression Analysis (DEA) -------------------------------------
+dataDEGs <- TCGAanalyze_DEA(
+  mat1 = dataFilt[, dataSmNT],
+  mat2 = dataFilt[, dataSmTP],
+  Cond1type = "Normal",
+  Cond2type = "Tumor",
+  fdr.cut = 0.01,
+  logFC.cut = 1,
+  method = "glmLRT"  # edgeR-based method
+)
 saveRDS(dataDEGs, "dataDEGs.RDS")
+
+# Optional: Stop cluster -----------------------------------------------------
+stopCluster(cl)
+
+# End of Script --------------------------------------------------------------
+message("TCGA RNA-Seq pipeline completed successfully.")
