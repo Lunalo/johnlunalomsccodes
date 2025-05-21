@@ -745,103 +745,120 @@ valuation_kapa_boost_pls <- XGBModel.tune$results
 
 
 #SVMR
+# Load required package for Cohen’s Kappa statistic
 library(vcd)
+
+# Calculate confidence interval for Kappa statistic from the confusion matrix of SVM Radial
 confint(Kappa(svmRadial.Conf$table))
 
+# Load library for computing performance metrics
 library(MLmetrics)
+
+# Compute F1 Score for class "BRCA" in SVM Radial predictions
 F1_Score(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
+
+# Compute Precision for class "BRCA"
 Precision(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
+
+# Compute Sensitivity (Recall) for class "BRCA"
 Sensitivity(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
+
+# Commented: Compute Specificity and AUC manually, but left disabled (requires binary classes)
+# Specificity(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
+
+# Load library to compute detailed diagnostic test stats (Sensitivity, Specificity, LR+, LR-, etc.)
 library(epiR)
 epi.tests(svmRadial.Conf$table, conf.level = 0.95)
 
+# Load ROC analysis library
 library(pROC)
+
+# Compute multiclass ROC and AUC for SVM Radial
 roc.multi <- multiclass.roc(as.ordered(svmRadial.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
 
+# Store AUC result with descriptive label
 svmradial_auc <- c("SVM radial Multi-class area under the curve" = auc(roc.multi))
 
-#SVML
+
+# --- SVM Linear ---
+
+# Kappa CI for SVM Linear
 confint(Kappa(svmLinear.Conf$table))
 
-library(MLmetrics)
+# Performance metrics for class "BRCA"
 F1_Score(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
+# Specificity and AUC are again commented out
+# Specificity(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
 
+# Confusion matrix diagnostics
 epi.tests(svmLinear.Conf$table, conf.level = 0.95)
 
+# Multiclass ROC AUC
 roc.multi <- multiclass.roc(as.ordered(svmLinear.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 svmLinear_auc <- c("SVM Linear Multi-class area under the curve" = auc(roc.multi))
 
-#SVMP
-confint(Kappa(svmPoly.Conf$table))
 
-library(MLmetrics)
+# --- SVM Polynomial ---
+
+confint(Kappa(svmPoly.Conf$table))
 F1_Score(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
-epi.tests(svmPoly.Conf$table, conf.level = 0.95)
+# Specificity(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
 
+epi.tests(svmPoly.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(svmPoly.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 svmploy_auc <- c("SVM Polynomial Multi-class area under the curve" = auc(roc.multi))
 
 
+# --- ANN ---
 
-#ANN
 confint(Kappa(ANNModel.Conf$table))
-
-library(MLmetrics)
 F1_Score(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-epi.tests(ANNModel.Conf$table, conf.level = 0.95)
+# Specificity(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
 
+epi.tests(ANNModel.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(ANNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 ann_auc <- c("ANN Multi-class area under the curve" = auc(roc.multi))
 
-#KNN
-confint(Kappa(KNNModel.Conf$table))
 
-library(MLmetrics)
+# --- KNN ---
+
+confint(Kappa(KNNModel.Conf$table))
 F1_Score(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
+# Specificity(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
 
 epi.tests(KNNModel.Conf$table, conf.level = 0.95)
-
 roc.multi <- multiclass.roc(as.ordered(KNNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 knn_auc <- c("KNN Multi-class area under the curve" = auc(roc.multi))
 
-#Random Forest
-confint(Kappa(rfmodel.Conf$table))
 
-library(MLmetrics)
+# --- Random Forest ---
+
+confint(Kappa(rfmodel.Conf$table))
 F1_Score(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
-epi.tests(rfmodel.Conf$table, conf.level = 0.95)
+# Specificity(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
+# AUC(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
 
+epi.tests(rfmodel.Conf$table, conf.level = 0.95)
 roc.multi <- multiclass.roc(as.ordered(rfmodel.pred), as.ordered(testData$CancerType))
 rf_auc <- c("random forest Multi-class area under the curve" = auc(roc.multi))
 
