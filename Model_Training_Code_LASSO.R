@@ -338,7 +338,7 @@ valuation_kapa_ann_lasso <- ANNModel.tune$results
 
 
 # ==============================================
-# STEP 14: Train K-Nearest Neighbors (KNN)
+# STEP 14: Train K-Nearest Neighbours (KNN)
 # ==============================================
 
 ctrlKNN <- trainControl(
@@ -346,7 +346,7 @@ ctrlKNN <- trainControl(
   number = 10,
   savePredictions = TRUE,
   classProbs = TRUE,
-  allowParallel = FALSE,     # KNN is usually not parallelized in caret
+  allowParallel = FALSE,     # KNN is usually not parallelised in caret
   sampling = "smote"
 )
 
@@ -477,131 +477,149 @@ valuation_kapa_boost_lasso <- XGBModel.tune$results
 
 
 
-#$$$$$$$$$$$$$$$$$$$$$ Overall Results 
+# ==============================================
+# STEP 17: Overall Results and Performance Evaluation
+# ==============================================
 
+# ===== SVM Radial =====
 
-#SVMR
-library(vcd)
-confint(Kappa(svmRadial.Conf$table))
+library(vcd)       # For Kappa CI
+confint(Kappa(svmRadial.Conf$table))  # Compute 95% CI for Cohen’s Kappa
 
-library(MLmetrics)
+library(MLmetrics)  # For F1, Precision, Sensitivity
 F1_Score(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(svmRadial.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmRadial.pred), as.factor(testData$CLASS), positive = "BRCA")
-library(epiR)
+
+library(epiR)       # For extended diagnostic metrics
 epi.tests(svmRadial.Conf$table, conf.level = 0.95)
 
-library(pROC)
+library(pROC)       # For AUC
 roc.multi <- multiclass.roc(as.ordered(svmRadial.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 svmradial_auc <- c("SVM radial Multi-class area under the curve" = auc(roc.multi))
 
-#SVML
-confint(Kappa(svmLinear.Conf$table))
 
-library(MLmetrics)
+# ===== SVM Linear =====
+
+confint(Kappa(svmLinear.Conf$table))
 F1_Score(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(svmLinear.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmLinear.pred), as.factor(testData$CLASS), positive = "BRCA")
-
 epi.tests(svmLinear.Conf$table, conf.level = 0.95)
 
 roc.multi <- multiclass.roc(as.ordered(svmLinear.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 svmLinear_auc <- c("SVM Linear Multi-class area under the curve" = auc(roc.multi))
 
-#SVMP
-confint(Kappa(svmPoly.Conf$table))
 
-library(MLmetrics)
+# ===== SVM Polynomial =====
+
+confint(Kappa(svmPoly.Conf$table))
 F1_Score(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(svmPoly.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(svmPoly.pred), as.factor(testData$CLASS), positive = "BRCA")
 epi.tests(svmPoly.Conf$table, conf.level = 0.95)
 
 roc.multi <- multiclass.roc(as.ordered(svmPoly.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 svmploy_auc <- c("SVM Polynomial Multi-class area under the curve" = auc(roc.multi))
 
 
+# ===== Artificial Neural Network (ANN) =====
 
-#ANN
 confint(Kappa(ANNModel.Conf$table))
-
-library(MLmetrics)
 F1_Score(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(ANNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(ANNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
 epi.tests(ANNModel.Conf$table, conf.level = 0.95)
 
 roc.multi <- multiclass.roc(as.ordered(ANNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 ann_auc <- c("ANN Multi-class area under the curve" = auc(roc.multi))
 
-#KNN
-confint(Kappa(KNNModel.Conf$table))
 
-library(MLmetrics)
+# ===== K-Nearest Neighbor (KNN) =====
+
+confint(Kappa(KNNModel.Conf$table))
 F1_Score(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(KNNModel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(KNNModel.pred), as.factor(testData$CLASS), positive = "BRCA")
-
 epi.tests(KNNModel.Conf$table, conf.level = 0.95)
 
 roc.multi <- multiclass.roc(as.ordered(KNNModel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
-
 knn_auc <- c("KNN Multi-class area under the curve" = auc(roc.multi))
 
-#Random Forest
-confint(Kappa(rfmodel.Conf$table))
 
-library(MLmetrics)
+# ===== Random Forest =====
+
+confint(Kappa(rfmodel.Conf$table))
 F1_Score(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(rfmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
-#Specificity(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
-#AUC(as.factor(rfmodel.pred), as.factor(testData$CLASS), positive = "BRCA")
 epi.tests(rfmodel.Conf$table, conf.level = 0.95)
 
 roc.multi <- multiclass.roc(as.ordered(rfmodel.pred), as.ordered(testData$CancerType))
 rf_auc <- c("random forest Multi-class area under the curve" = auc(roc.multi))
 
-#XgBoost
+
+# ===== XGBoost =====
+
 confint(Kappa(boostmodel.Conf$table))
 F1_Score(as.factor(boostmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Precision(as.factor(boostmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 Sensitivity(as.factor(boostmodel.pred), as.factor(testData$CancerType), positive = "BRCA")
 epi.tests(boostmodel.Conf$table, conf.level = 0.95)
+
 roc.multi <- multiclass.roc(as.ordered(boostmodel.pred), as.ordered(testData$CancerType))
 auc(roc.multi)
 xgboost_auc <- c("xgboost Multi-class area under the curve" = auc(roc.multi))
 
-models_auc <- data.frame(model = c(names(xgboost_auc), names(rf_auc),names(knn_auc),names(ann_auc),
-                               names(svmploy_auc),names(svmLinear_auc),names(svmradial_auc)),
-                               AUC = c(xgboost_auc, rf_auc,knn_auc,ann_auc,
-                                       svmploy_auc,svmLinear_auc,svmradial_auc))
-                     
-lasso_models <- list (models_auc = models_auc, ann_metrics= valuation_kapa_ann_lasso,knn_metrics = valuation_kapa_knn_lasso,boost_metrics= valuation_kapa_boost_lasso,
-                      rf_metrics=valuation_kapa_rf_lasso, svmpoly_metrics = valuation_kapa_svmploy_lasso, svmlinear_metrics = valuation_kapa_svmlinear_lasso,
-                      svmradial_metrics = valuation_kapa_svmradial_lasso,  ann = valuation_table_ann_lasso, knn= valuation_table_knn_lasso, svmradial= valuation_table_svmradial_lasso,
-                      svmLinear = valuation_table_svmlinear_lasso, svmpoly = valuation_table_svmpoly_lasso, rf = evaluation_table_rf_lasso, boost = evaluation_table_boost_lasso)
 
-write.xlsx(lasso_models, "lasso_metrics_results.xlsx", rowNames=T, overwrite = TRUE)
+# ==============================================
+# STEP 18: Combine All AUC Results
+# ==============================================
+
+models_auc <- data.frame(
+  model = c(
+    names(xgboost_auc), names(rf_auc), names(knn_auc), names(ann_auc),
+    names(svmploy_auc), names(svmLinear_auc), names(svmradial_auc)
+  ),
+  AUC = c(
+    xgboost_auc, rf_auc, knn_auc, ann_auc,
+    svmploy_auc, svmLinear_auc, svmradial_auc
+  )
+)
+
+# ==============================================
+# STEP 19: Export All Model Results
+# ==============================================
+
+# Create a list combining all model evaluation metrics and confusion matrices
+lasso_models <- list(
+  models_auc = models_auc,
+  ann_metrics = valuation_kapa_ann_lasso,
+  knn_metrics = valuation_kapa_knn_lasso,
+  boost_metrics = valuation_kapa_boost_lasso,
+  rf_metrics = valuation_kapa_rf_lasso,
+  svmpoly_metrics = valuation_kapa_svmploy_lasso,
+  svmlinear_metrics = valuation_kapa_svmlinear_lasso,
+  svmradial_metrics = valuation_kapa_svmradial_lasso,
+  
+  # Per-class confusion table metrics
+  ann = valuation_table_ann_lasso,
+  knn = valuation_table_knn_lasso,
+  svmradial = valuation_table_svmradial_lasso,
+  svmLinear = valuation_table_svmlinear_lasso,
+  svmpoly = valuation_table_svmpoly_lasso,
+  rf = evaluation_table_rf_lasso,
+  boost = evaluation_table_boost_lasso
+)
+
+# Write the final evaluation output to an Excel file
+write.xlsx(lasso_models, "lasso_metrics_results.xlsx", rowNames = TRUE, overwrite = TRUE)
+
 
 
 #===================================== SVM Radial
