@@ -340,7 +340,7 @@ write.csv(x = plsData, file = "plsDataLatest.csv", row.names = TRUE)
 Data <- read.csv(file = "plsDataLatest.csv", header = TRUE, row.names = 1, stringsAsFactors = TRUE)
 #Data$CancerType <- ifelse(Data$CancerType == "BRCA", 1, ifelse(Data$CancerType == "COAD", 2, ifelse(Data$CancerType == "LUAD", 3, ifelse(Data$CancerType == "OV", 4, 5))))
 
-
+#Split data Train = 80%/test = 20% using caret
 trainIndex <- createDataPartition(Data$CancerType,p=.80,list=FALSE)
 trainData <- Data[trainIndex,]
 testData  <- Data[-trainIndex,]
@@ -352,16 +352,15 @@ Xtest <- as.matrix(testData[,-which(names(testData) %in% c("CancerType"))])
 Ytest <- as.matrix(testData[,which(names(testData) %in% c("CancerType"))])
 Ytest[,1]<- as.factor(Ytest[,1])
 
-
+###Anywhere with this line ensures reproducibility of the model results
 set.seed(849)
 
 
-#SVM
-
+# Train model using Support Vector Machine
 #trainData$CancerType <- as.factor(ifelse(trainData$CancerType == 1, "BRCA", ifelse(trainData$CancerType == 2, "COAD", ifelse(trainData$CancerType == 3, "LUAD", ifelse(trainData$CancerType == 4, "OV", "THCA")))))
 #testData$CancerType <- as.factor(ifelse(testData$CancerType == 1, "BRCA", ifelse(testData$CancerType == 2, "COAD", ifelse(testData$CancerType == 3, "LUAD", ifelse(testData$CancerType == 4, "OV", "THCA")))))
 library(doParallel)
-nocores <- detectCores() - 1
+nocores <- detectCores() - 1 # Ensure parallel processing to improve processing speed
 cl <- makeCluster(nocores)
 registerDoParallel(cl)
 
@@ -370,58 +369,91 @@ library(dplyr)         # Used by caret
 library(kernlab)       # support vector machine 
 library(pROC)	       # plot the ROC curves
 
-ctrlSVM <- caret::trainControl(method="CV",   # 10 folds cross validation
-                               number = 10,
-                               classProbs=TRUE,
-                               savePredictions = TRUE,
-                               allowParallel = TRUE,
-                               sampling = "smote"
+# Define training control settings for caret
+ctrlSVM <- caret::trainControl(
+  method = "CV",                  # Use cross-validation (CV)
+  number = 10,                    # Perform 10-fold cross-validation
+  classProbs = TRUE,              # Enable calculation of class probabilities
+  savePredictions = TRUE,         # Save out-of-fold predictions
+  allowParallel = TRUE,           # Allow parallel processing if available
+  sampling = "smote"              # Use SMOTE (Synthetic Minority Over-sampling Technique) to handle class imbalance
 )
 
+# Train a Support Vector Machine (SVM) model with a radial basis function (RBF) kernel
+svmRadial.tune <- caret::train(
+  x = as.data.frame(scale(trainData[-which(names(trainData) %in% c("CancerType"))])),  # Scale training features
+  y = trainData$CancerType,                       # Target variable
+  method = "svmRadial",                           # Use SVM with radial kernel
+  tuneLength = 5,                                 # Try 5 different combinations of tuning parameters (sigma and cost)
+  # preProc = c("center", "scale"),              # Optional preprocessing (already scaling above, so commented)
+  metric = "Accuracy",                            # Use Accuracy to select the best model
+  trControl = ctrlSVM                             # Use the defined training control
+)
 
-svmRadial.tune <- caret::train(x=as.data.frame(scale(trainData[-which(names(trainData) %in% c("CancerType"))])),
-                               y= trainData$CancerType,
-                               method = "svmRadial",   # Radial kernel
-                               tuneLength = 5,					# 9 values of the cost function
-                               #preProc = c("center","scale"),  # Center and scale data
-                               metric="Accuracy",
-                               trControl=ctrlSVM)
-
-
+# Output the results of the radial SVM tuning process
 svmRadial.tune
 
-
-
+# This line attempts to extract the overall Accuracy from the confusion matrix (not yet defined)
 svmRadial.Conf$overall[1]
 
 
+
+# Predicting using the developed model
 svmRadial.pred <- predict(svmRadial.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
 svmRadial.tab = table(pred = svmRadial.pred, true = testData[,c("CancerType")])
+#Confusion matrix best on predicted vs Actual
 svmRadial.Conf = confusionMatrix(as.factor(svmRadial.pred), as.factor(testData[,c("CancerType")]), positive = levels(testData[,c("CancerType")])[1])
 
 svmRadial.Conf
 
 valuation_table_svmradial_pls <- t(svmRadial.Conf$byClass)
+
+#Kappa values
 valuation_kapa_svmradial_pls <- svmRadial.tune$results
 
-svmLinear.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
-                               y= trainData$CancerType,
-                               method = "svmLinear",
-                               tuneLength = 5,
-                               #preProc = c("scale"),
-                               metric="Accuracy",
-                               trControl=ctrlSVM)	
+### Train SVM using Linear Kernel
+# Train a Support Vector Machine (SVM) model with a linear kernel using caret
+svmLinear.tune <- caret::train(
+  x = scale(trainData[-which(names(trainData) %in% c("CancerType"))]),  # Scale the training features (excluding 'CancerType')
+  y = trainData$CancerType,                                             # Target variable: 'CancerType'
+  method = "svmLinear",                                                 # Specify linear kernel SVM method
+  tuneLength = 5,                                                       # Try 5 different values of the cost (C) parameter
+  # preProc = c("scale"),                                              # Scaling is already applied above; this line is commented out
+  metric = "Accuracy",                                                  # Evaluation metric for model tuning
+  trControl = ctrlSVM                                                  # Training control object (e.g., resampling strategy)
+)
 
-
+# Display the results of the SVM model tuning
 svmLinear.tune
 
-svmLinear.pred <- predict(svmLinear.tune, scale(testData[,-which(names(testData) %in% c("CancerType"))]))
-svmLinear.tab = table(pred = svmLinear.pred, true = testData[,c("CancerType")])
-svmLinear.Conf = confusionMatrix(svmLinear.pred, factor(testData[,c("CancerType")]), positive = levels(factor(testData[,c("CancerType")]))[1])
+# Make predictions on the test set using the trained SVM model
+svmLinear.pred <- predict(
+  svmLinear.tune, 
+  scale(testData[,-which(names(testData) %in% c("CancerType"))])        # Scale test features (excluding 'CancerType')
+)
+
+# Create a confusion matrix as a table (predicted vs true labels)
+svmLinear.tab = table(
+  pred = svmLinear.pred, 
+  true = testData[,c("CancerType")]
+)
+
+# Compute detailed performance metrics (confusion matrix, sensitivity, specificity, etc.)
+svmLinear.Conf = confusionMatrix(
+  svmLinear.pred, 
+  factor(testData[,c("CancerType")]), 
+  positive = levels(factor(testData[,c("CancerType")]))[1]              # Specify the positive class (first factor level)
+)
+
+# Display the confusion matrix with detailed metrics
 svmLinear.Conf
 
+# Extract class-wise performance metrics (e.g., Sensitivity, Specificity, F1, etc.) and transpose for readability
 valuation_table_svmlinear_pls <- t(svmLinear.Conf$byClass)
+
+# Extract the grid search results for model performance across different tuning parameters (e.g., Accuracy for each C)
 valuation_kapa_svmlinear_pls <- svmLinear.tune$results
+
 # 
 svmPoly.tune <- caret::train(x=scale(trainData[-which(names(trainData) %in% c("CancerType"))]),
                              y= trainData$CancerType,
